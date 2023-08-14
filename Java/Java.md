@@ -4949,7 +4949,7 @@ public class StarvationDemo {
 
 ##### 运行时内存的划分
 
-#### ![JVM-Model](assets/JVM-Model.jpg)
+####   ![JVM-Model](assets/JVM-Model.jpg)
 
 如上图 JVM 模型，在运行时数据区，于任意线程，栈（虚拟机栈 Stack 和本地方法栈 Native Method Stack）和程序计数器（PC）都是私有的，而堆和方法区是共享的。接下来讲讲运行时数据区的各个部分：
 
@@ -5038,10 +5038,421 @@ Java 运行时数据区是 JVM 运行 Java 程序所使用的内存区域的总�
 
    处理器有多个执行单元，可以同时执行多条指令。指令重排可以使独立的指令并行执行，从而提高整体性能。
 
+指令重排分为如下三类：
+
+- 编译器重排
+
+  在单线程情形下，在不改变单线程程序语义的前提下，重新安排语句的执行顺序。
+
+- 处理器重排
+
+  现代处理器拥有多级流水线和多核心，允许在执行过程中对指令进行重排，以最大程度地利用处理器资源
+
+- 内存重排
+
+  处理器为了优化性能，在执行程序时可能会对内存操作进行重新排序，以最大程度地利用处理器内部资源
+
+#### JMM 如何协调指令重排，确保多线程程序在不同的线程之间保持正确的内存操作顺序和可见性？
+
+JMM 定义了下述概念：
+
+1. 原子性 Atomicity
+
+   JMM保证基本的操作（如读写操作）是原子的，即它们不会被中断或交错执行。
+
+2. 可见性 Visibility
+
+   JMM保证线程对共享变量的修改对其他线程是可见的，即一个线程对共享变量的修改在另一个线程中是可以看到的。
+
+3. 顺序性 Ordering
+
+   一个线程内的指令不会被重排或者乱序执行，保持了程序次序（Program Order）。然而，JMM不保证不同线程之间的操作顺序。这是因为在多线程编程中，不同线程之间的操作可能会交错执行，导致不同线程中的操作顺序与程序次序不一致。JMM并不保证一个线程的操作会立即对其他线程可见，也不保证不同线程间的操作顺序，除非使用了适当的同步机制。
+
+4. happens-before 关系
+
+   这是 JMM 中重要的概念，用于定义内存操作之间的顺序关系。如果操作 A happens-before 操作B，那么操作 A 对于操作 B 是可见的
+
+#### happens-before 规则
+
+1. 程序顺序规则
+
+   在同一个线程中，按照源代码顺序执行的操作会确保 A 的结果在 B 执行时对于线程可见。
+
+2. 监视器的锁的释放-获取规则
+
+   如果线程 T1 在释放互斥锁后，线程 T2 获取相同的互斥锁。那么 T1 的释放操作 happens-before T2 的获取操作，确保对于互斥锁的操作在释放和获取之间具有顺序性和可见性。
+
+3. volatile 变量规则
+
+   如果线程 T1 对 volatile 变量进行写操作，然后线程 T2 对相同的 volatile 变量进行读操作，那么 T1 的写操作 happens-before T2 的读操作，确保对 volatile 变量的写入对其他线程的读是可见的。
+
+4. 线程启动规则
+
+   如果线程 T1 启动线程 T2，那么线程 T1 的启动 T2 的操作 happens-before T2 的所有操作，确保新线程在启动后执行。
+
+5. 线程终止规则
+
+   如果线程 T1 终止，那么 T1 的所有操作 happens-before 其他线程检测到 T1 已经终止
+
+6. 中断规则
+
+   如果线程 T1 中断线程  T2，那么 T1 的中断操作 happens-before T2 检测到中断事件
+
+#### volatile 关键字
+
+volatile 关键字的作用是告诉编译器和运行时环境，被修饰的变量可能会被多个线程访问，因此需要特殊处理来确保线程之间的一致性和可见性。具体来说，volatile 关键字有两个作用：
+
+1. 可见性
+
+   当一个线程修改了 volatile 变量的值，这个修改立即会写回到主内存。其他线程在读取这个变量时，会从主内存中重新加载最新的值，而不是使用本地缓存（工作内存）中的旧值。这样确保所有的线程都能看到最新的值，避免了因为线程不一致而产生的问题。
+
+2. 禁止重排序
+
+   编译器和处理器在优化代码时可能会对指令进行重排序，以提高性能。然而在多线程情况下，重排序可能导致意外的结果。通过使用 volatile，可以告诉编译器和处理器不要对 volatile 变量的读写操作进行重排序，从而确保正确的执行顺序。	
+
+在使用 volatile 时，需要注意以下几点：
+
+1. 不保证原子性
+
+   不能保证复合操作比如 count ++ 的原子性，此时需要额外的同步手段来保证操作原子性。
+
+2. 有限使用场景
+
+   volatile 主要适用于变量的读取操作比写入操作频繁的情况，例如开关标志。对于复杂的操作，如多步操作的原子性要求，通常需要更加强大的同步机制，如 synchronized 或者 java.util.concurrent 包中的工具类
+
+3. 不保证互斥性
+
+   volatile 不提供线程之间的互斥性，因此不能用来代替锁。如果多个线程需要进行复合操作，仍需要使用适当的锁机制来保证线程安全。
+
+4. 性能开销大
+
+   由于 volatile 的特性要求对内存的写入和读取都是直接的，不能经过线程的线程的工作内存，因此会引入一些性能开销。在高并发环境下，频繁使用 volatile 可能会影响性能。
+
+简言之，volatile 关键字适用于需要保证可见性和禁止重排序的简单场景，但在需要复杂同步和原子操作的情况下，需要结合其他同步机制来确保线程安全。
+
+volatile 开关示例
+
+```java
+package com.congee02.multithread.volatilec;
+
+public class VolatileExample {
+
+    /**
+     * volatile 开关
+     */
+    private static class VolatileFlagToggle {
+        private volatile boolean flag = false;
+
+        public synchronized void toggleFlag() {
+            flag = ! flag;
+            System.out.println(Thread.currentThread().getName() + " : " + "Flag has been toggled.");
+        }
+
+        public void printFlag() {
+            System.out.println(Thread.currentThread().getName() + " : " + "The flag is " + flag + ".");
+        }
+    }
+
+    private final static VolatileFlagToggle toggle = new VolatileFlagToggle();
+
+    /**
+     * 打开开关
+     */
+    private static final Runnable writeRunnable = () -> {
+        toggle.toggleFlag();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    };
+
+    /**
+     * 等待开关开启
+     */
+    private final static Runnable readRunnable = () -> {
+        while (! toggle.flag);
+        toggle.printFlag();
+    };
+
+    public static void main(String[] args) {
+
+        final Thread writeThread = new Thread(writeRunnable, "writeThread");
+        final Thread readThread = new Thread(readRunnable, "readThread");
+
+        writeThread.start();
+        readThread.start();
+
+    }
+
+}
+```
+
+在复杂操作的情况下，可以使用 sychronized 来提供更强的同步机制。
+
+#### synchronized 关键字
+
+同步块：同步块Java 中用于实现线程同步的一种机制，允许你在代码中指定一个特定的代码块，以确保同一时间只有一个线程可以进入该代码块执行。具体而言，synchronized 可以修饰 实例方法、静态方法、代码块。
+
+volatile 不能提供线程之间对共享资源的互斥性，而 synchronized 可以弥补这点。synchronized 可以修饰方法和代码块，使其变为同步块。
+
+#####  修饰实例方法
+
+可将 synchronized 关键字直接应用于实例方法，使整个实例方法成为一个同步块。此时，synchronized 加锁的对象就是当前实例方法所在实例本身，也就是说当线程 A 在访问某个对象的 synchronized 实例方法时，其他线程不能访问该对象，包括该对象的非 synchronized 方法，此时锁的粒度可能会太大，从而降低性能。
+
+```java
+public synchronized void add() {
+    this.counter ++;
+}
+```
+
+请看异步电源开关的例子：
+
+```java
+package com.congee02.multithread.sychronizedc;
+
+public class SynchronizedSwitchExample {
+
+    /**
+     * 异步电源开关
+     */
+    private static class SynchronizedPowerSwitch {
+
+        /**
+         * volatile: 保证其可见性 & 防止指令重排
+         */
+        private volatile boolean flag;
+
+        /**
+         * synchronized: 只允许一个线程切换开关
+         */
+        public synchronized void toggleFlag() {
+            flag = ! flag;
+            System.out.println("toggleFlag: " + "{ NanoTime: " + (System.nanoTime() - baseNanoTime) + "; Thread: " + Thread.currentThread().getName() + "}");
+        }
+
+        /**
+         * 检查开关
+         */
+        public boolean check() {
+            System.out.println("check: " + "{NanoTime: " + (System.nanoTime() - baseNanoTime) + "; Thread: " + Thread.currentThread().getName() + "}");
+            return flag;
+        }
+
+    }
+
+    private static final long baseNanoTime = System.nanoTime();
+
+    private static final SynchronizedPowerSwitch powerSwitch = new SynchronizedPowerSwitch();
+
+    private final static Runnable toggleSwitchRunnable = () -> {
+        for (int i = 0 ; i < 5 ; i ++ ) {
+            powerSwitch.toggleFlag();
+        }
+    };
+
+    private final static Runnable checkSwitchRunnable = () -> {
+        for (int i = 0 ; i < 5 ; i ++ ) {
+            powerSwitch.check();
+        }
+    };
+
+    public static void main(String[] args) {
+
+        Thread toggleThread1 = new Thread(toggleSwitchRunnable, "🔺Toggle");
+        Thread toggleThread2 = new Thread(toggleSwitchRunnable, "⚪Toggle");
+        toggleThread1.start();
+        toggleThread2.start();
+
+        Thread checkThread1 = new Thread(checkSwitchRunnable, "🔺Check");
+        Thread checkThread2 = new Thread(checkSwitchRunnable, "⚪Check");
+        checkThread1.start();
+        checkThread2.start();
+    }
+
+}
+
+```
+
+某次运行结果：
+
+```java
+check: {NanoTime: 3660500; Thread: ⚪Check}
+check: {NanoTime: 53886700; Thread: ⚪Check}
+check: {NanoTime: 53945100; Thread: ⚪Check}
+check: {NanoTime: 53995300; Thread: ⚪Check}
+check: {NanoTime: 54042300; Thread: ⚪Check}
+toggleFlag: { NanoTime: 3234900; Thread: 🔺Toggle}
+toggleFlag: { NanoTime: 54467000; Thread: 🔺Toggle}
+toggleFlag: { NanoTime: 54525600; Thread: 🔺Toggle}
+toggleFlag: { NanoTime: 54672400; Thread: 🔺Toggle}
+toggleFlag: { NanoTime: 54901900; Thread: 🔺Toggle}
+check: {NanoTime: 3972600; Thread: 🔺Check}
+check: {NanoTime: 55672800; Thread: 🔺Check}
+check: {NanoTime: 55850800; Thread: 🔺Check}
+check: {NanoTime: 55992100; Thread: 🔺Check}
+check: {NanoTime: 56143500; Thread: 🔺Check}
+toggleFlag: { NanoTime: 57288600; Thread: ⚪Toggle}
+toggleFlag: { NanoTime: 57541300; Thread: ⚪Toggle}
+toggleFlag: { NanoTime: 57690600; Thread: ⚪Toggle}
+toggleFlag: { NanoTime: 57810500; Thread: ⚪Toggle}
+toggleFlag: { NanoTime: 57922700; Thread: ⚪Toggle}
+```
+
+可以观察到，没有任何两个线程可以同时访问 powerSwitch 对象，其锁的粒度为当前实例对象。
+
+##### 修饰静态方法
+
+synchronized修饰静态方法的使用与实例方法并无差别，在静态方法上加上synchronized关键字即可，其锁的粒度为类。这里给出的例子是懒汉式单例模式的 getInstance 方法。
+
+```java
+public synchronized static NaiveSynchronizedLazyLoadSingleton getInstance() {
+    if (instance == null) {
+        instance = new NaiveSynchronizedLazyLoadSingleton();
+    }
+    return instance;
+}
+```
+
+##### 修饰代码块
+
+格式如下
+
+```java
+synchronized (lockObject) {
+    // block code ...
+}
+```
+
+其 lockObject 可以是 this，一个类的 class 对象，具体的锁。前两者，一个对实例对象本身上锁，一个对类上锁。
+
+```java
+synchronized (this) {
+   	// block code...
+}
+```
+
+等同于
+
+```java
+<其他修饰符(不包含static)> synchronized methodName() {
+    
+} 
+```
+
+```java
+public final class ExampleLockClass {
+
+    private ExampleLockClass() {}
+
+    public static void foo() {
+        synchronized (ExampleLockClass.class) {
+            System.out.println("Foo invoked.");
+        }
+    }
+
+}
+
+```
+
+等同于
+
+```java
+package com.congee02.multithread.sychronizedc;
+
+public final class ExampleLockClass {
+
+    private ExampleLockClass() {}
+    
+    public static synchronized void foo() {
+        System.out.println("Foo invoked.");
+    }
+
+}
+```
+
+synchronized 的 lockObject 不是 this 也不是 某个类的 Class 对象的情况，请看多线程计数器的例子：
+
+```java
+package com.congee02.multithread.sychronizedc;
+
+import java.util.TreeMap;
+
+public class CorrectSynchronizedCounterExample {
+
+    private static class CorrectSynchronizedCounter {
+
+        private Integer count = 0;
+        private final Object lock = new Object();
+
+        public void increment() {
+            synchronized (lock) {
+                count ++;
+            }
+        }
+
+        public Integer getCount() {
+            synchronized (lock) {
+                return count;
+            }
+        }
+
+    }
+
+    private final static CorrectSynchronizedCounter counter = new CorrectSynchronizedCounter();
+    private final static Runnable incrementRunnable = () -> {
+        for (int i = 0 ; i < 100 ; i ++ ) {
+            counter.increment();
+        }
+    };
+    private final static Runnable getCountRunnable = () -> {
+        for (int i = 0 ; i < 100 ; i ++ ) {
+            System.out.println(counter.getCount());
+        }
+    };
+
+    public static void main(String[] args) {
+        Thread incrementThread = new Thread(incrementRunnable, "incrementThread");
+        Thread getCountThread = new Thread(getCountRunnable, "getCountThread");
+        incrementThread.start();
+        getCountThread.start();
+    }
+
+}
+```
+
+这里可能会产生疑问，会什么不把 count 作为锁对象，而是专门创建一个锁对象呢，这是因为 Integer 对象是不可变的，执行 count ++ 时，实际上是创建了一个新的 Integer 对象并赋值给 count，导致每个进程进入 sychronized (count) 时获取的其实不同的锁对象，请看错误示范。
+
+```java
+package com.congee02.multithread.sychronizedc;
+
+public class ErrorSynchronizedCounterExample {
+
+    private static class ErrorSynchronizedCounter {
+        private volatile Integer count = 0;
+
+        public void increment() {
+            synchronized (count) {
+                // Integer 对象是不可变的，执行 count ++ 时，
+                // 实际上创建了一个新的 Integer 对象并赋值给 count，
+                // 导致每个进程进入 synchronized (count) 时获取的其实是不同的锁对象
+                count ++;
+            }
+        }
+
+        public int getCount() {
+            synchronized (count) {
+                return count;
+            }
+        }
+    }
+
+}
+
+```
 
 
 
 
 ## :moon:网络编程
-
 
