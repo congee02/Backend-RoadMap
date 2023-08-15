@@ -498,6 +498,558 @@ HashMap 和 HashTable 都是 Java 中用于实现键值对的实现类，它们�
 
 需要注意的是，HashMap和TreeMap都不是线程安全的。如果在多线程环境下使用它们，需要采取额外的同步措施来保证线程安全。
 
+### List, Set, Queue, Map 四者区别
+
+- List：存储的元素是有序的，可重复的
+- Set：存储的元素不可重复，但存储是无序的
+- Queue：按特定的排队规则来确定先后顺序，存储的元素是有序的、可重复的。
+- Map：使用键值对 (key-value) 存储，类似于数学上的函数，给出一个 Key，返回一个 Value。其中，Key 是不可重复的，Value 是可重复的，每个键最多映射到一个值。
+
+### 集成框架底层数据结构总结
+
+先来看一下 Collection 接口下的集合
+
+#### List
+
+- ArrayList：Object[] 数组
+- Vector：Object[] 数组
+- LinkedList：双向链表
+
+#### Map
+
+- HashMap：JDK1.8 之前 HashMap 由数组 + 链表（也被称为桶数组 Bucket Array）组成的，数组是 HashMap 的主体，链表则是为了解决哈希冲突而存在的（“拉链法”解决冲突）。JDK1.8 以后在解决哈希冲突时有了较大的变化，当链表长度大于阈值（默认为8）时，会将链表转换为红黑树。以减少搜索时间。
+
+  JDK11， HashMap 的 Bucket Array 和 “阈值”
+
+  ```java
+  /**
+   * The table, initialized on first use, and resized as
+   * necessary. When allocated, length is always a power of two.
+   * (We also tolerate length zero in some operations to allow
+   * bootstrapping mechanics that are currently not needed.)
+   */
+  transient Node<K,V>[] table;
+  
+  // 树化阈值
+  static final int TREEIFY_THRESHOLD = 8;
+  ```
+
+- LinkedHashMap：LinkedMap 继承自 HashMap，所以它的底层仍然是基于拉链式散列结构即由数组和链表或者红黑树组成。另外，LinkedHashMap 在上面的基础上，增加了一条双向链表，使得上面的结构可以保持键值对插入的顺序。同时对链表进行相应的操作，实现了访问顺序相关逻辑。
+- HashTable：数组 + 链表组成，数组是 HashTable 的主题，链表则是为了解决哈希冲突而存在的。
+- TreeMap：红黑树（自平衡的排序二叉树）
+
+#### Set
+
+- HashSet：基于 HashMap 实现，底层采用 HashMap 来存储元素
+- LinkedHashSet：LinkedHashSet 是 HashSet 的子类，并且其内部是通过 LinkedHashMap 实现的。
+- TreeSet：有序且唯一的红黑树
+
+### List
+
+#### ArrayList 和 普通数组 的区别
+
+ArrayList 内部基于动态数组实现，比 普通数组 使用起来更加灵活：
+
+- ArrayList 会根据实际存储的元素动态地调整容量，而 普通数组 被创建后就不能改变它的长度了。
+
+- ArrayList 允许使用泛型来确保类型安全，普通数组不可以
+
+- ArrayList 中只能存储对象。对于基本类型数据，需要使用其对应的包装类（Integer、Double ... )。ArrayList 支持插入、删除、遍历等常见操作。并且提供了丰富的 API 方法，比如 add、remove 等。普通数组只能按照下标访问其中的元素，不具备动态添加、删除元素的功能。
+
+  ```java
+  /**
+   * The array buffer into which the elements of the ArrayList are stored.
+   * The capacity of the ArrayList is the length of this array buffer. Any
+   * empty ArrayList with elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA
+   * will be expanded to DEFAULT_CAPACITY when the first element is added.
+   */
+  transient Object[] elementData; // non-private to simplify nested class access
+  ```
+
+  
+
+- ArrayList 创建时不需要指定大小（但推荐指定初始大小），而 普通数组 创建时必须指定大小。
+
+- ArrayList 是一种更灵活、更易于使用的数据结构，适用于动态管理元素集合；普通数组则适用于已知大小且不需要频繁插入、删除操作的场景
+
+```java
+package com.congee02.list;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * 普通数组 和 ArrayList 增删改查 操作对比
+ */
+public class ArrayListVSArray {
+
+    private static void arrayCRUD() {
+        String[] strArrays = {"hello", "world", "!"};
+        // 通过下标访问并修改
+        strArrays[0] = "goodbye";
+        System.out.println(Arrays.toString(strArrays)); // 需要借助 Arrays.toString(array) 打印
+        // 删除第一个元素
+        for (int i = 0 ; i < strArrays.length - 1 ; i ++ ) {
+            strArrays[i] = strArrays[i + 1];
+        }
+        strArrays[strArrays.length - 1] = null;
+        System.out.println(Arrays.toString(strArrays));
+    }
+
+    private static void arrayListCRUD() {
+        ArrayList<String> strList = new ArrayList<>(Arrays.asList("hello", "world", "!"));
+        // 向 strList 添加元素
+        strList.add(0, "halo");
+        strList.add("SanbornCalvin44");
+        System.out.println(strList);
+        strList.set(1, "fox");
+        System.out.println(strList);
+        strList.remove(0);
+        System.out.println(strList);
+    }
+
+    public static void main(String[] args) {
+        System.out.println("===== arrayCRUD =====");
+        arrayCRUD();
+        System.out.println("===== arrayListCRUD =====");
+        arrayListCRUD();
+    }
+
+}
+
+```
+
+#### ArrayList 插入和删除元素的时间复杂度
+
+插入：
+
+- 头部插入：由于需要将所有元素都依次向后移动一个位置，因此时间复杂度是 O(n)。
+- 尾部插入：当 `ArrayList` 的容量未达到极限时，往列表末尾插入元素的时间复杂度是 O(1)，因为它只需要在数组末尾添加一个元素即可；当容量已达到极限并且需要扩容时，则需要执行一次 O(n) 的操作将原数组复制到新的更大的数组中，然后再执行 O(1) 的操作添加元素。
+- 指定位置插入：需要将目标位置之后的所有元素向后移动一个位置，然后把新元素放入指定位置，时间复杂度为O(n)
+
+删除：
+
+- 头部删除：由于需要将所有元素依次向前移动一个位置，因此时间复杂度是 O(n)。
+- 尾部删除：当删除的元素位于列表末尾时，时间复杂度为 O(1)。
+- 指定位置删除：需要将目标元素之后的所有元素向前移动一个位置以填补被删除的空白位置，因此需要移动平均 n/2 个元素，时间复杂度为 O(n)。
+
+#### LinkedList 插入和删除元素的时间复杂度
+
+头部插入/删除：只需要修改头结点的指针即可完成插入/删除操作，因此时间复杂度为 O(1)。
+
+尾部插入/删除：只需要修改尾结点的指针即可完成插入/删除操作，因此时间复杂度为 O(1)。
+
+指定位置插入/删除：需要先移动到指定位置，再修改指定节点的指针完成插入/删除，因此需要移动平均 n/2 个元素，时间复杂度为 O(n)。
+
+#### LinkedList 为什么不能实现 RandomAccess 接口
+
+RandomAccess 是一个标记接口，用来表明实现该接口的类支持随机访问（通过索引快速访问元素）。由于 LinkedList 底层数据结构是链表，内存地址不连续，只能通过指针来定位，而不能像数组一样使用 Base + Offset 随机访问，不支持随机访问。
+
+#### LinkedList 和 ArrayList 的区别
+
+| 方面                                 | ArrayList                                                    | LinkedList                                                   |
+| ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 线程安全                             | 不同步，非线程安全                                           | 不同步，非线程安全                                           |
+| 底层数据结构                         | Object[] 数组                                                | 双向链表                                                     |
+| 插入和删除和删除是否受元素位置的影响 | `ArrayList` 采用数组存储，所以插入和删除元素的时间复杂度受元素位置的影响 | `LinkedList` 采用链表存储，所以在头尾插入或者删除元素不受元素位置的影响；如果是要在指定位置 `i` 插入和删除元素的话（`add(int index, E element)`，`remove(Object o)`,`remove(int index)`）， 时间复杂度为 O(n) ，因为需要先移动到指定位置再插入和删除。 |
+| 是否支持快速随机访问                 | 支持（实现 RandomAccess 标记接口）                           | 不支持                                                       |
+| 内存空间占用                         | 空间浪费主要体现在 ArrayList 结尾会预留一定的空间            | 而 LinkedList 的空间浪费主要体现在需要额外存储后继和前驱节点 |
+
+需要补充说明，需要用到 LinkedList 的场景几乎都可以使用 ArrayList 来代替，并且性能通常会更好。此外，LinkedList 不一定适合元素增删的场景，LinkedList 仅仅在头尾插入和头尾删除的情形下时间复杂度近似 O(1)，其他情况下增删的平均时间为 O(n)。
+
+#### RandomAccess 标识接口
+
+```java
+public interface RandomAccess {
+}
+```
+
+RandomAccess 标识一个 Collection 接口的实现类具有随机访问功能。比如 Collections 的 binarySearch 方法，需要先判断传入的 List 是否实现了 RandomAccess，如果是调用 indexedBinarySearch，否则调用 iteratorBinarySearch 方法。
+
+#### ArrayList 扩容机制
+
+ArrayList 扩容机制分为三个部分：
+
+1. 初始容量
+
+   在创建 ArrayList 对象时，可以指定初始容量，即 Object[] 数组的初始大小，如果没有指定，默认初始容量为 10
+
+   Object[] 数组
+
+   ```java
+   /**
+    * The array buffer into which the elements of the ArrayList are stored.
+    * The capacity of the ArrayList is the length of this array buffer. Any
+    * empty ArrayList with elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA
+    * will be expanded to DEFAULT_CAPACITY when the first element is added.
+    */
+   transient Object[] elementData; // non-private to simplify nested class access
+   ```
+
+   默认初始容量
+
+   ```java
+   /**
+    * Default initial capacity.
+    */
+   private static final int DEFAULT_CAPACITY = 10;
+   ```
+
+   指定初始容量
+
+   ```java
+    /**
+    * Constructs an empty list with the specified initial capacity.
+    *
+    * @param  initialCapacity  the initial capacity of the list
+    * @throws IllegalArgumentException if the specified initial capacity
+    *         is negative
+    */
+   public ArrayList(int initialCapacity) {
+       if (initialCapacity > 0) {
+           this.elementData = new Object[initialCapacity];
+       } else if (initialCapacity == 0) {
+           this.elementData = EMPTY_ELEMENTDATA;
+       } else {
+           throw new IllegalArgumentException("Illegal Capacity: "+
+                                              initialCapacity);
+       }
+   }
+   ```
+
+   
+
+2. 添加元素
+
+   在某个 ArrayList 对象添加元素前，会检查元素添加后元素个数是否会达到 Object[] elmentData 数组容量上限。如果没有，则直接插入，否则触发扩容，然后插入。
+
+   ```java
+   /**
+    * Inserts the specified element at the specified position in this
+    * list. Shifts the element currently at that position (if any) and
+    * any subsequent elements to the right (adds one to their indices).
+    *
+    * @param index index at which the specified element is to be inserted
+    * @param element element to be inserted
+    * @throws IndexOutOfBoundsException {@inheritDoc}
+    */
+   public void add(int index, E element) {
+       // 检查插入的索引是否正确
+       rangeCheckForAdd(index);
+       // ArrayList 修改次数（不重要）
+       modCount++;
+       final int s;
+       Object[] elementData;
+       // 如果添加元素后元素个数达到 Object[] elementData 数组上限
+       if ((s = size) == (elementData = this.elementData).length)
+           // 触发扩容
+           elementData = grow();
+       // add 逻辑，将 index 后的所有元素向后移动一格
+       System.arraycopy(elementData, index,
+                        elementData, index + 1,
+                        s - index);
+       // 将新增的 element 置于 index
+       elementData[index] = element;
+       // size 加 1
+       size = s + 1;
+   }
+   ```
+
+   
+
+3. 触发扩容
+
+   当一个元素添加后达到了 Object[] 数组容量上限，则触发扩容。扩容的步骤如下：
+
+   - 创建一个新的更大的容量的 Object[] 数组（默认情况下，新数组的大小通常会是原数组大小的1.5倍，为了 尽量减少频繁的扩容操作，从而提高性能）
+   - 将原来数组中的所有元素逐个拷贝到新数组中
+   - 新的数组取代原来的数组，成为当前 ArrayList 对象新的内存存储
+
+   
+
+   ```java
+   private Object[] grow() {
+       // 传入最小需要的容量
+       return grow(size + 1);
+   }
+   ```
+
+   ```java
+   // 创建一个新的更大容量的 Object[] 数组
+   private Object[] grow(int minCapacity) {
+       return elementData = Arrays.copyOf(elementData,
+                                          newCapacity(minCapacity));
+   }
+   ```
+
+   ```java
+   // 返回扩容后的容量
+   private int newCapacity(int minCapacity) {
+       // overflow-conscious code
+       int oldCapacity = elementData.length;
+   	// 扩容 50%
+       int newCapacity = oldCapacity + (oldCapacity >> 1);
+       
+       // 处理溢出问题
+       if (newCapacity - minCapacity <= 0) {
+           if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA)
+               return Math.max(DEFAULT_CAPACITY, minCapacity);
+           if (minCapacity < 0) // overflow
+               throw new OutOfMemoryError();
+           return minCapacity;
+       }
+       // 得到新扩容的容量大小
+       return (newCapacity - MAX_ARRAY_SIZE <= 0)
+           ? newCapacity
+           : hugeCapacity(minCapacity);
+   }
+   ```
+
+   ![aHR0cHM6Ly9pbWcubXVidS5jb20vZG9jdW1lbnRfaW1hZ2UvMmVlZDU2OWYtYTgxNC00Y2MwLTlkMjYtMjJiMGQ0YzZhNzc0LTc3MDI4ODQuanBn](assets/aHR0cHM6Ly9pbWcubXVidS5jb20vZG9jdW1lbnRfaW1hZ2UvMmVlZDU2OWYtYTgxNC00Y2MwLTlkMjYtMjJiMGQ0YzZhNzc0LTc3MDI4ODQuanBn.png)
+   
+### Set
+
+#### Comparable 和 Comparator 的区别
+
+Comparable 和 Comparator 接口都是 Java 中用于排序的接口，它们在实现类对象之间比较大小、排序等方面发挥重要作用。
+
+- Comparable 用一个参数比较大小，方法为 compareTo(Object obj)
+- Comparator 用两个参数比较大小，方法为 compare(Object obj1, Object obj2)
+
+一般我们需要对一个集合使用自定义排序时，我们就需要重写 compareTo 方法或者 compare 方法。
+
+Comparator 自定义排序
+
+```java
+package com.congee02.compare;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+
+public class UserIdSort {
+
+    private static class User {
+        private Integer id;
+        private String name;
+
+        public User(Integer id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return "User{" +
+                    "id=" + id +
+                    ", name='" + name + '\'' +
+                    '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            User user = (User) o;
+            return Objects.equals(id, user.id) && Objects.equals(name, user.name);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id, name);
+        }
+    }
+
+    private static List<User> unsortedUserList() {
+        HashSet<User> userHashSet = new HashSet<>();
+        for (int i = 0 ; i < 100 ; i ++ ) {
+            userHashSet.add(new User(i, "user " + i));
+        }
+        ArrayList<User> userArrayList = new ArrayList<>(userHashSet);
+        return userArrayList;
+    }
+
+    public static void main(String[] args) {
+        List<User> userList = unsortedUserList();
+        System.out.println("===== unsorted =====");
+        userList.forEach(System.out::println);
+        userList.sort((o1, o2) -> o1.id - o2.id);
+        System.out.println("===== sorted =====");
+        userList.forEach(System.out::println);
+    }
+
+}
+
+```
+
+Comparable 排序
+
+```java
+package com.congee02.compare;
+
+import java.util.Objects;
+import java.util.TreeMap;
+import java.util.TreeSet;
+
+public class UserIdComparableSort {
+    private static class ComparableUser implements Comparable<ComparableUser> {
+        private Integer id;
+        private String name;
+
+        public ComparableUser(Integer id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return "User{" +
+                    "id=" + id +
+                    ", name='" + name + '\'' +
+                    '}';
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            UserIdComparableSort.ComparableUser user = (UserIdComparableSort.ComparableUser) o;
+            return Objects.equals(id, user.id) && Objects.equals(name, user.name);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id, name);
+        }
+
+        @Override
+        public int compareTo(ComparableUser o) {
+            return this.id - o.id;
+        }
+    }
+
+    public static void main(String[] args) {
+        TreeSet<ComparableUser> comparableUserTreeSet = new TreeSet<>();
+        for (int i = 0 ; i < 100 ; i ++ ) {
+            comparableUserTreeSet.add(new ComparableUser(i, "user " + i));
+        }
+        for (ComparableUser user : comparableUserTreeSet) {
+            System.out.println(user);
+        }
+    }
+
+}
+```
+
+#### 比较 HashSet、LinkedHashSet 和 TreeSet
+
+- HashSet、LinkedHashSet 和 TreeSet 都是 Set 接口的实现，都能保证数据唯一性，并不都是线程安全的。
+- HashSet、LinkedHashSet 和 TreeSet 的主要区别在于底层数据结构不同。HashSet 的底层数据结构是哈希表（基于 HashMap 实现）。LinkedHashSet 的底层数据结构是链表和哈希表，元素的插入和取出满足 FIFO。 TreeSet 底层数据结构是红黑树，元素是有序的，排序的方式有自然排序和定制排序。
+
+### Queue
+
+#### Queue 和 Deque 的区别
+
+Queue 是单端队列，只能从一端插入元素，另一端删除元素，实现上遵循 先进先出（FIFO）原则。Queue 扩展了 Collection 的接口，根据 因为容量问题而导致操作失败后处理结果的不同 可以分为两类方法：一种操作失败抛出异常，另一种则会返回特殊值。
+
+| `Queue` 接口 | 抛出异常  | 返回特殊值 |
+| ------------ | --------- | ---------- |
+| 插入队尾     | add(E e)  | offer(E e) |
+| 删除队首     | remove()  | poll()     |
+| 查询队首元素 | element() | peek()     |
+
+LinkedList 的 remove() poll()
+
+```java
+/**
+ * Retrieves and removes the head (first element) of this list.
+ *
+ * @return the head of this list, or {@code null} if this list is empty
+ * @since 1.5
+ */
+public E poll() {
+    final Node<E> f = first;
+    return (f == null) ? null : unlinkFirst(f);
+}
+
+/**
+ * Retrieves and removes the head (first element) of this list.
+ *
+ * @return the head of this list
+ * @throws NoSuchElementException if this list is empty
+ * @since 1.5
+ */
+public E remove() {
+    return removeFirst();
+}
+
+/**
+ * Removes and returns the first element from this list.
+ *
+ * @return the first element from this list
+ * @throws NoSuchElementException if this list is empty
+ */
+public E removeFirst() {
+    final Node<E> f = first;
+    if (f == null)
+        throw new NoSuchElementException();
+    return unlinkFirst(f);
+}
+```
+
+Deque 是双端队列，在队列两端均可以插入或者删除元素。
+
+Deque 扩展了 Queue 的接口，增加了在队首和队尾进行插入和删除的方法，根据上述的分类方法分为两类：
+
+| `Deque` 接口 | 抛出异常      | 返回特殊值      |
+| ------------ | ------------- | --------------- |
+| 插入队首     | addFirst(E e) | offerFirst(E e) |
+| 插入队尾     | addLast(E e)  | offerLast(E e)  |
+| 删除队首     | removeFirst() | pollFirst()     |
+| 删除队尾     | removeLast()  | pollLast()      |
+| 查询队首元素 | getFirst()    | peekFirst()     |
+| 查询队尾元素 | getLast()     | peekLast()      |
+
+事实上，Deque 提供 push 和 pop 方法，可以用来模拟栈。
+
+LinkedList 的 addFisrt 和 offerFirst 源码
+
+```java
+/**
+ * Returns the first element in this list.
+ *
+ * @return the first element in this list
+ * @throws NoSuchElementException if this list is empty
+ */
+public E getFirst() {
+    final Node<E> f = first;
+    if (f == null)
+        throw new NoSuchElementException();
+    return f.item;
+}
+
+/**
+ * Retrieves, but does not remove, the first element of this list,
+ * or returns {@code null} if this list is empty.
+ *
+ * @return the first element of this list, or {@code null}
+ *         if this list is empty
+ * @since 1.6
+ */
+public E peekFirst() {
+    final Node<E> f = first;
+    return (f == null) ? null : f.item;
+ }
+```
+
+
+
+#### ArrayDeque 和 LinkedList 的区别
+
+ArrayDeque 和 LinkedList 
+
 ## :monkey:泛型
 
 ### 基本介绍
@@ -5599,11 +6151,5 @@ AQS 是 AbstractQueuedSynchronizer 的简称，翻译为 抽象队列同步器�
 
 
 
-## :moon:网络编程
-
-## 什么是网络编程
-
-网络编程是一种计算机编程技术，用于创建能够通过计算机网络进行通信的应用程序。
-
-### 
+## :moon:Java IO
 
