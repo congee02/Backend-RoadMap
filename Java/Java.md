@@ -2088,13 +2088,12 @@ BlockingQueue 的实现类有：PriorityBlockingQueue，LinkedBlockingQueue，Ar
               }
               tl = p;
           } while ((e = e.next) != null);
-          // 将转换后的红黑树设置到对应桶中
+         // 将转换后的红黑树设置到对应桶中
           if ((tab[index] = hd) != null)
               hd.treeify(tab);
       }
   }
   ```
-  
   
 
 #### HashMap VS HashSet 的区别
@@ -2135,7 +2134,123 @@ HashMap 和 HashSet 的简要对比
 
 #### HashMap VS TreeMap
 
-HashMap 和 TreeMap 都继承自 AbstractMap，都实现了 Map 的基本功能，但是需要注意，TreeMap 在此基础上还实现了 SortedMap 接口的内容
+HashMap 和 TreeMap 都继承自 AbstractMap，都实现了 Map 的基本功能，但是需要注意，TreeMap 在此基础上还实现了 SortedMap 接口的内容。
+
+SortedMap 接口是对 NavigableMap 的增强。
+
+NavigableMap 提供了一组方法，允许在 Map 中执行导航操作，比如可以获取指定范围内的子映射、查找最接近给定键的键值对等等。以下是 NavigableMap 提供的方法：
+
+1. `ceilingEntry(K key)`：返回映射中大于等于给定键的最小键值对，如果不存在则返回 `null`。
+2. `ceilingKey(K key)`：返回映射中大于等于给定键的最小键，如果不存在则返回 `null`。
+3. `floorEntry(K key)`：返回映射中小于等于给定键的最大键值对，如果不存在则返回 `null`。
+4. `floorKey(K key)`：返回映射中小于等于给定键的最大键，如果不存在则返回 `null`。
+5. `higherEntry(K key)`：返回映射中严格大于给定键的最小键值对，如果不存在则返回 `null`。
+6. `higherKey(K key)`：返回映射中严格大于给定键的最小键，如果不存在则返回 `null`。
+7. `lowerEntry(K key)`：返回映射中严格小于给定键的最大键值对，如果不存在则返回 `null`。
+8. `lowerKey(K key)`：返回映射中严格小于给定键的最大键，如果不存在则返回 `null`。
+9. `pollFirstEntry()`：移除并返回映射中的第一个键值对，如果映射为空，则返回 `null`。
+10. `pollLastEntry()`：移除并返回映射中的最后一个键值对，如果映射为空，则返回 `null`。
+11. `subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive)`：返回指定键范围内的子映射。
+12. `headMap(K toKey, boolean inclusive)`：返回键小于给定键的部分映射。
+13. `tailMap(K fromKey, boolean inclusive)`：返回键大于等于给定键的部分映射。
+
+SortedMap 在 NavigableMap 的基础上添加了键排序的相关方法：
+
+1. `comparator()`：返回用于对键进行排序的比较器，如果使用自然顺序排序则返回 `null`。
+2. `firstKey()`：返回映射中的第一个键。
+3. `lastKey()`：返回映射中的最后一个键。
+4. `headMap(K toKey)`：返回键小于给定键的部分映射。
+5. `tailMap(K fromKey)`：返回键大于等于给定键的部分映射。
+6. `subMap(K fromKey, K toKey)`：返回指定键范围内的子映射。
+
+TreeMap 就是 SortedMap 典型的实现类，使得 TreeMap 拥有对集合中键元素排序的能力。默认情况下 TreeMap 的比较器 Comparator 为 null，使用自然排序（使用 Comparable 的 compareTo(T)），当指定 TreeMap  的 Comparator 时，使用 Comparator 进行排序。
+
+```java
+// 指定 Comparator 来进行自定义排序
+public TreeMap(Comparator<? super K> comparator) {
+    this.comparator = comparator;
+}
+
+// 默认 comparator 为 null。使用自然排序（Comparable）
+public TreeMap() {
+    comparator = null;
+}
+```
+
+指定键比较器来操作 TreeMap
+
+```java
+package com.congee02.map.tree;
+
+import java.util.*;
+
+public class TreeMapCustomComparator {
+
+    private static class CustomKey {
+        private String name;
+        private Integer id;
+
+        public CustomKey(String name, Integer id) {
+            this.name = name;
+            this.id = id;
+        }
+
+        @Override
+        public String toString() {
+            return "CustomKey{" +
+                    "name='" + name + '\'' +
+                    ", id=" + id +
+                    '}';
+        }
+    }
+
+    private static List<CustomKey> randomUnsortedCustomKey(int size) {
+        HashSet<CustomKey> set = new HashSet<>(size);
+        for (int i = 0 ; i < size ; i ++ ) {
+            set.add(new CustomKey("customKey " + i, i));
+        }
+        return new ArrayList<>(set);
+    }
+
+    public static void main(String[] args) {
+        int size = 5;
+        List<CustomKey> keys = randomUnsortedCustomKey(size);
+        TreeMap<CustomKey, String> treeMap = new TreeMap<>(Comparator.comparingInt(k -> k.id));
+        for (int i = 0 ; i < size ; i ++ ) {
+            treeMap.put(keys.get(i), "value " + i);
+        }
+        System.out.println(treeMap);
+    }
+
+}
+
+```
+
+打印结果：
+
+```java
+{CustomKey{name='customKey 0', id=0}=value 0, CustomKey{name='customKey 1', id=1}=value 2, CustomKey{name='customKey 2', id=2}=value 1, CustomKey{name='customKey 3', id=3}=value 3, CustomKey{name='customKey 4', id=4}=value 4}
+```
+
+TreeMap 相较于 HashMap 多了对集合中的元素根据键排序（SortedMap）的能力和对集合内元素搜索（NavigableMap）的能力。
+
+#### HashSet 如何检查重复
+
+上面提到 HashSet 依靠 HashMap 实现，HashMap 如何检查重复键，与 HashSet 检查重复的机制几乎雷同。
+
+需要复述的是，HashSet （当然 HashMap也是）判断两个对象相同，先要检查哈希值相同，如果哈希值相同，再检查 equals 是否为 true（如果当前 Key 为 null 则用 == 判断是否相等）。
+
+```java
+// 先判断哈希值是否相同，若是，则进一步使用 equals 判断（如果当前 Key 为 null 使用 == 判断相等）
+if (p.hash == hash &&
+            ((k = p.key) == key || (key != null && key.equals(k)))) {
+    // ... ... ... ...
+}
+```
+
+这样做的原因是：对象之间的哈希也可能存在哈希碰撞，哈希值相同并不一定保证两对象相同，还需要使用 equals 进一步判断（如果当前 Key 为 null 则用 == 判断是否相等）。所以在写实体类时，在重写 hashCode() 的同时还需要重写 equals(Object)。
+
+#### :moon:HashMap 的底层实现
 
 
 
