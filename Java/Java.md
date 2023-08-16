@@ -438,73 +438,6 @@ public class IteratorDemo {
 
 ```
 
-
-
-### ArrayList VS LinkedList
-
-ArrayList 和 LinkedList 是 Java 集合框架中 List 接口的两种常用实现。它在性能方面有不同的特点，适用于不同的使用场景。下面对它们进行性能对比：
-
-#### ArrayList
-
-- 底层数据结构：基于动态数组实现
-- 随机访问性能好：由于是基于数组，通过索引可以快速随机访问元素，时间复杂度为 O(1)
-- 插入和删除性能较差：插入和删除元素可能需要移动其他元素，特别是数组中见或者开头进行插入和删除操作，时间复杂度为 O(n)
-- 适用场景：当需要频繁进行随机访问，并且插入和删除操作较少时，ArrayList 是较好的选择
-
-#### LinkedList
-
-- 底层数据结构：基于双链表实现
-- 随机访问性能较差：由于是链表结构，随机访问需要从头节点或者尾节点开始遍历链表，时间复杂度为 O(n)
-- 插入和删除性能较好：在链表中插入和删除元素只需要修改引用，时间复杂度为 O(1)
-- 适用场景：当需要频繁进行插入和删除操作，并且随机访问较少时，LinkedList 是较好的选择
-
-#### 总结
-
-- ArrayList 适合频繁随机访问元素，但插入和删除操作较少的场景。
-- LinkedList 适合频繁插入和删除元素，但随机访问较少的场景。
-
-### HashTable VS HashMap
-
-HashMap 和 HashTable 都是 Java 中用于实现键值对的实现类，它们的区别如下：
-
-1. 线程安全性
-   - HashMap 是非线程安全的。多个线程可以同时对 HashMap 进行读写操作，但在并发读写的情况下，可能导致不确定的结果
-   - HashTable 是线程安全的。HashTable 的所有方法都是同步的，因此多个线程可以安全地同时对 HashTable 进行读写操作
-2. null 键 和 null 值
-   - HashMap 允许键和值都为 null。这意味着可以将 null 值作为键或值放入 HashMap
-   - HashTable 不允许允许键或值为 null。如果这么做，将会抛出 NullPointerException 
-3. 继承关系
-   - HashMap 继承自 AbstractMap 类，并实现了 Map 接口
-   - HashTable 继承自 Dictionary 类，并实现了 Map 接口。Dictonary 现在已经过时，不再推荐使用。
-4.  性能
-   - 在单线程情况下，HashMap 的性能通常比 HashTable 更好，因为它不需要额外的同步开销
-   - 在多线程情况下，虽然 HashTable 提供了线程安全，但由于所有方法都是同步的，可能会导致性能下降。而 HashMap 在多线程环境下需要额外的同步机制来保证线程安全。
-
-### TreeMap 和 HashMap 的区别
-
-1. 底层数据结构
-
-   - HashMap：使用哈希表（数组+链表或者红黑树）实现。哈希表根据键的哈希码来快速定位数组中的位置，然后通过链表或者红黑树来处理哈希冲突。
-   - TreeMap：使用红黑树实现，红黑树是一种自平衡二叉搜索树。它保持键的有序性，即键值对按照键的自然顺序或自定义比较器的顺序排列。
-2. 排序
-   - HashMap：不保证元素的顺序，无法保证元素的存储顺序和遍历顺序一致
-   - TreeMap：根据键的自然顺序或者通过传入的比较器对键进行排序，保持元素按键的有序状态，保持元素按键的有序状态
-3. 性能
-   - HashMap：在插入、查找和删除的平均复杂度为 O(1)。在哈希冲突较少的情况下，性能非常高效
-   - TreeMap：适用于需要按键有序存储元素，或者根据键的自然顺序进行遍历的场景。在这种情况下，TreeMap 可以更方便地得到有序的结果
-4. 适用场景
-   - HashMap：适用于大部分情况，特别是需要高效插入、查找和删除元素，并不关心元素顺序的场景
-   - TreeMap：适用于需要按键有序存储元素，或者根据键的自然顺序进行遍历的场景。在这种情况下，TreeMap 可以更加方便地得到有序的结果
-
-需要注意的是，HashMap和TreeMap都不是线程安全的。如果在多线程环境下使用它们，需要采取额外的同步措施来保证线程安全。
-
-### List, Set, Queue, Map 四者区别
-
-- List：存储的元素是有序的，可重复的
-- Set：存储的元素不可重复，但存储是无序的
-- Queue：按特定的排队规则来确定先后顺序，存储的元素是有序的、可重复的。
-- Map：使用键值对 (key-value) 存储，类似于数学上的函数，给出一个 Key，返回一个 Value。其中，Key 是不可重复的，Value 是可重复的，每个键最多映射到一个值。
-
 ### 集成框架底层数据结构总结
 
 先来看一下 Collection 接口下的集合
@@ -946,19 +879,71 @@ public class UserIdComparableSort {
 #### 比较 HashSet、LinkedHashSet 和 TreeSet
 
 - HashSet、LinkedHashSet 和 TreeSet 都是 Set 接口的实现，都能保证数据唯一性，并不都是线程安全的。
-- HashSet、LinkedHashSet 和 TreeSet 的主要区别在于底层数据结构不同。HashSet 的底层数据结构是哈希表（基于 HashMap 实现）。LinkedHashSet 的底层数据结构是链表和哈希表，元素的插入和取出满足 FIFO。 TreeSet 底层数据结构是红黑树，元素是有序的，排序的方式有自然排序和定制排序。
+
+- HashSet、LinkedHashSet 和 TreeSet 的主要区别在于底层数据结构不同。
+
+  HashSet 的底层数据结构是哈希表（基于 HashMap 实现）。
+
+  ```java
+  public class HashSet<E>
+      extends AbstractSet<E>
+      implements Set<E>, Cloneable, java.io.Serializable
+  {
+      static final long serialVersionUID = -5024744406713321676L;
+  	
+      // 基于 HashMap 实现
+      private transient HashMap<E,Object> map;
+  
+      // 充当 Map.Entry<K, V> 中的 V，即 Value
+      private static final Object PRESENT = new Object();
+      
+      // 其他代码...
+      
+      // PRESENT 的使用，填充 Value
+      public boolean add(E e) {
+          return map.put(e, PRESENT)==null;
+      }
+  
+  }
+  ```
+
+  LinkedHashSet 的底层数据结构是链表和哈希表，元素的插入和取出满足 FIFO。 
+
+  TreeSet 底层数据结构是红黑树（TreeMap），元素是有序的，排序的方式有自然排序和定制排序。
+
+  ```java
+  public class TreeSet<E> extends AbstractSet<E>
+      implements NavigableSet<E>, Cloneable, java.io.Serializable
+  {
+      // 基于 NavigableMap 实现，默认是 TreeMap （红黑树实现的 Map）
+      private transient NavigableMap<E,Object> m;
+  
+      // 充当 Map.Entry<K, V> 中的 V，即 Value
+      private static final Object PRESENT = new Object();
+      
+      // 自行指定 NavigableMap
+     	TreeSet(NavigableMap<E,Object> m) {
+          this.m = m;
+      }
+      
+      // NavigableMap 默认为 TreeMap
+      public TreeSet() {
+          this(new TreeMap<>());
+      }
+  }
+  ```
 
 ### Queue
 
 #### Queue 和 Deque 的区别
 
-Queue 是单端队列，只能从一端插入元素，另一端删除元素，实现上遵循 先进先出（FIFO）原则。Queue 扩展了 Collection 的接口，根据 因为容量问题而导致操作失败后处理结果的不同 可以分为两类方法：一种操作失败抛出异常，另一种则会返回特殊值。
+Queue 是单端队列，只能从一端插入元素，另一端删除元素，实现上遵循 先进先出（FIFO）原则。Queue 扩展了 Collection 的接口，根据操作失败后处理结果的不同可以分为两类方法：一种操作失败可能会抛出异常（取决于具体实现），另一种则会返回特殊值。
 
-| `Queue` 接口 | 抛出异常  | 返回特殊值 |
-| ------------ | --------- | ---------- |
-| 插入队尾     | add(E e)  | offer(E e) |
-| 删除队首     | remove()  | poll()     |
-| 查询队首元素 | element() | peek()     |
+| `Queue` 接口 | 可能抛出异常 | 返回特殊值 |
+| ------------ | ------------ | ---------- |
+| 插入队尾     | add(E e)     | offer(E e) |
+| 删除队首     | remove()     | poll()     |
+| 查询队首元素 | element()    | peek()     |
 
 LinkedList 的 remove() poll()
 
@@ -1003,7 +988,7 @@ Deque 是双端队列，在队列两端均可以插入或者删除元素。
 
 Deque 扩展了 Queue 的接口，增加了在队首和队尾进行插入和删除的方法，根据上述的分类方法分为两类：
 
-| `Deque` 接口 | 抛出异常      | 返回特殊值      |
+| `Deque` 接口 | 可能抛出异常  | 返回特殊值      |
 | ------------ | ------------- | --------------- |
 | 插入队首     | addFirst(E e) | offerFirst(E e) |
 | 插入队尾     | addLast(E e)  | offerLast(E e)  |
@@ -1014,7 +999,7 @@ Deque 扩展了 Queue 的接口，增加了在队首和队尾进行插入和删�
 
 事实上，Deque 提供 push 和 pop 方法，可以用来模拟栈。
 
-LinkedList 的 addFisrt 和 offerFirst 源码
+LinkedList 的 getFisrt 和 offerFirst 源码
 
 ```java
 /**
@@ -1044,11 +1029,1115 @@ public E peekFirst() {
  }
 ```
 
+LinkedList的 addLast（不抛出异常的实现）
+
+```java
+public void addLast(E e) {
+    linkLast(e);
+}
+
+
+void linkLast(E e) {
+    final Node<E> l = last;
+    final Node<E> newNode = new Node<>(l, e, null);
+    last = newNode;
+    if (l == null)
+        first = newNode;
+    else
+        l.next = newNode;
+    size++;
+    modCount++;
+}
+```
+
 
 
 #### ArrayDeque 和 LinkedList 的区别
 
-ArrayDeque 和 LinkedList 
+ArrayDeque 和 LinkedList 都实现了 Deque 接口，两者都具有队列功能，但两者有什么区别呢？
+
+- 底层结构：ArrayDeque 是基于可变长的数组和双指针来实现，而 LinkedList 则通过链表实现
+
+  ArrayDeque 底层数据结构
+
+  ```java
+  public class ArrayDeque<E> extends AbstractCollection<E>
+                             implements Deque<E>, Cloneable, Serializable
+  {
+      // 可变长数组，由扩容机制提供支持
+      transient Object[] elements;
+  
+      // 头指针
+      transient int head;
+  
+      // 尾指针
+      transient int tail;
+      
+      // 其他代码...
+  }
+  ```
+
+  LinkedList 底层数据结构
+
+  ```java
+  public class LinkedList<E>
+      extends AbstractSequentialList<E>
+      implements List<E>, Deque<E>, Cloneable, java.io.Serializable
+  {
+      transient int size = 0;
+  
+      // 链表头节点
+      transient Node<E> first;
+  
+     	// 链表尾节点
+      transient Node<E> last;
+      
+      // 双链表节点
+      private static class Node<E> {
+          E item;
+          Node<E> next;
+          Node<E> prev;
+  
+          Node(Node<E> prev, E element, Node<E> next) {
+              this.item = element;
+              this.next = next;
+              this.prev = prev;
+          }
+      }
+  }
+  ```
+
+  
+
+- null 支持：ArrayDeque 不支持 null 数据，但 LinkedList 支持
+
+  ArrayDeque#add(E)，插入的元素为 null 时，抛出空指针异常
+
+  ```java
+  public boolean add(E e) {
+      addLast(e);
+      return true;
+  }
+  
+  public void addLast(E e) {
+      if (e == null)
+          throw new NullPointerException();
+      final Object[] es = elements;
+      es[tail] = e;
+      if (head == (tail = inc(tail, es.length)))
+          grow(1);
+  }
+  ```
+
+  LinkedList#add(E)，插入的元素为 null 时，允许正常插入
+
+  ```java
+  public boolean add(E e) {
+      linkLast(e);
+      return true;
+  }
+  
+  // 无 null 值检查，允许 null 值插入
+  void linkLast(E e) {
+      final Node<E> l = last;
+      final Node<E> newNode = new Node<>(l, e, null);
+      last = newNode;
+      if (l == null)
+          first = newNode;
+      else
+          l.next = newNode;
+      size++;
+      modCount++;
+  }
+  ```
+
+- 插入均摊性能：ArrayDeque 插入时可能存在扩容过程，但是均摊后插入操作时间复杂度依旧为 O(1)。虽然 LinkedList 不需要扩容，但是每次插入数据时均需要申请新的堆空间，均摊性能相对较差
+
+  ArrayDeque 触发扩容
+
+  ```java
+  public void addLast(E e) {
+      if (e == null)
+          throw new NullPointerException();
+      final Object[] es = elements;
+      es[tail] = e;
+      // 数组满，触发扩容
+      if (head == (tail = inc(tail, es.length)))
+          grow(1);
+  }
+  ```
+
+  
+
+  LinkedList 插入数据时申请新的堆空间
+
+  ```java
+  public boolean add(E e) {
+      linkLast(e);
+      return true;
+  }
+  
+  void linkLast(E e) {
+      final Node<E> l = last;
+      // new Node(l, e, null) 在堆中申请新空间以存储 Node 对象
+      final Node<E> newNode = new Node<>(l, e, null);
+      last = newNode;
+      if (l == null)
+          first = newNode;
+      else
+          l.next = newNode;
+      size++;
+      modCount++;
+  }
+  ```
+
+从性能角度，ArrayDeque 实现队列的性能好于 LinkedList。此外 ArrayDeque 也可以用于实现栈。
+
+Queue 和 Deque 对比示例
+
+```java
+package com.congee02.queue;
+
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.LinkedList;
+import java.util.Queue;
+
+public class QueueVsDeque {
+
+    private final static Queue<Object> queue = new LinkedList<>();
+    private final static Deque<Object> deque = new ArrayDeque<>();
+
+    private static void queueDemo() {
+        queue.offer(1);
+        queue.offer("World");
+        queue.offer("Hello");
+        System.out.println("Queue: ");
+        while (! queue.isEmpty()) {
+            System.out.println(queue.poll() + "");
+        }
+    }
+
+    private static void dequeDemo() {
+        deque.offerFirst("Hello");
+        deque.offerLast("World");
+        deque.offer("!");   // 默认插入到队尾
+        System.out.println("Deque: ");
+        while (! deque.isEmpty()) {
+            System.out.println(deque.removeFirst());
+        }
+    }
+
+    public static void main(String[] args) {
+        System.out.println("===== Queue =====");
+        queueDemo();
+        System.out.println("===== Deque =====");
+        dequeDemo();
+    }
+
+}
+
+```
+
+
+
+#### PriorityQueue
+
+PriorityQueue (优先队列) 是 Java 中的一个队列实现，它根据元素的优先级来决定元素的顺序。与普通的队列不同，优先队列不是严格按照元素插入的先后顺序进行操作，而是根据每个元素的优先级来决定下一个要处理的元素。
+
+PriorityQueue 使用了小顶堆数据结构实现，但可以接受一个 Comparator 作为构造器参数，从而自定义元素优先级的先后。
+
+```java
+@SuppressWarnings("unchecked")
+public class PriorityQueue<E> extends AbstractQueue<E>
+    implements java.io.Serializable {
+	
+    // 默认堆大小
+    private static final int DEFAULT_INITIAL_CAPACITY = 11;
+
+    // 小顶堆。该数组是个动态数组，基于动态扩容机制
+    transient Object[] queue; // non-private to simplify nested class access
+
+    // 堆的大小
+    int size;
+
+    // 自定义比较器，用于自定义排序。若为 null，则按照自然顺序排序
+    private final Comparator<? super E> comparator;
+    
+    
+    // 自动扩容
+    private void grow(int minCapacity) {
+        int oldCapacity = queue.length;
+        // Double size if small; else grow by 50%
+        int newCapacity = oldCapacity + ((oldCapacity < 64) ?
+                                         (oldCapacity + 2) :
+                                         (oldCapacity >> 1));
+        // overflow-conscious code
+        if (newCapacity - MAX_ARRAY_SIZE > 0)
+            newCapacity = hugeCapacity(minCapacity);
+        queue = Arrays.copyOf(queue, newCapacity);
+    }
+    
+    // 其他代码 ... ...
+}
+```
+
+在最小堆中，父结点的值小于等于其子节点的值，这意味着优先队列中最高优先级的元素位于队列的前面。通过这种方式，可以确保每次从队列取出的元素是当前优先级最高的，主要依靠堆操作的上滤和下滤操作：
+
+上滤操作：
+
+```java
+// 	k: 填入的位置
+//  x: 填入的内容
+private void siftUp(int k, E x) {
+    // 使用比较器对比
+    if (comparator != null)
+        siftUpUsingComparator(k, x, queue, comparator);
+    // 调用 Comparable 对比
+    else
+        siftUpComparable(k, x, queue);
+}
+
+private static <T> void siftUpComparable(int k, T x, Object[] es) {
+    Comparable<? super T> key = (Comparable<? super T>) x;
+    while (k > 0) {
+        int parent = (k - 1) >>> 1;
+        Object e = es[parent];
+        if (key.compareTo((T) e) >= 0)
+            break;
+        es[k] = e;
+        k = parent;
+    }
+    es[k] = key;
+}
+
+private static <T> void siftUpUsingComparator(
+    int k, T x, Object[] es, Comparator<? super T> cmp) {
+    while (k > 0) {
+        int parent = (k - 1) >>> 1;
+        Object e = es[parent];
+        if (cmp.compare(x, (T) e) >= 0)
+            break;
+        es[k] = e;
+        k = parent;
+    }
+    es[k] = x;
+}
+```
+
+下滤操作：
+
+```java
+private void siftDown(int k, E x) {
+        if (comparator != null)
+            siftDownUsingComparator(k, x, queue, size, comparator);
+        else
+            siftDownComparable(k, x, queue, size);
+    }
+
+private static <T> void siftDownComparable(int k, T x, Object[] es, int n) {
+    // assert n > 0;
+    Comparable<? super T> key = (Comparable<? super T>)x;
+    int half = n >>> 1;           // loop while a non-leaf
+    while (k < half) {
+        int child = (k << 1) + 1; // assume left child is least
+        Object c = es[child];
+        int right = child + 1;
+        if (right < n &&
+            ((Comparable<? super T>) c).compareTo((T) es[right]) > 0)
+            c = es[child = right];
+        if (key.compareTo((T) c) <= 0)
+            break;
+        es[k] = c;
+        k = child;
+    }
+    es[k] = key;
+}
+
+private static <T> void siftDownUsingComparator(
+    int k, T x, Object[] es, int n, Comparator<? super T> cmp) {
+    // assert n > 0;
+    int half = n >>> 1;
+    while (k < half) {
+        int child = (k << 1) + 1;
+        Object c = es[child];
+        int right = child + 1;
+        if (right < n && cmp.compare((T) c, (T) es[right]) > 0)
+            c = es[child = right];
+        if (cmp.compare(x, (T) c) <= 0)
+            break;
+        es[k] = c;
+        k = child;
+    }
+    es[k] = x;
+}
+```
+
+
+
+其中堆数据结构是基于动态数组的，自然支持动态扩容。
+
+#### PriorityQueue 常用 API
+
+| 方法                              | 描述                                               |
+| --------------------------------- | -------------------------------------------------- |
+| add(E e) / offer(E e)             | 将元素插入队列，根据优先级进行排序。               |
+| remove() / poll()                 | 移除并返回队列中的头元素，如果队列为空则返回null。 |
+| peek()                            | 返回队列中的头元素，但不移除它。                   |
+| size()                            | 返回队列中的元素数量。                             |
+| isEmpty()                         | 检查队列是否为空。                                 |
+| clear()                           | 清空队列中的所有元素。                             |
+| comparator()                      | 返回用于排序的比较器，如果没有指定则返回null。     |
+| toArray()                         | 将队列转换为数组。                                 |
+| addAll(Collection<? extends E> c) | 将一个集合中的所有元素添加到队列中。               |
+
+#### PriorityQueue 练习
+
+##### 找出数组中第 k 大的元素
+
+```java
+    package com.congee02.queue.practice;
+    
+    import java.util.PriorityQueue;
+    
+    /**
+     * 找到数据中第 k 大的元素
+     */
+    public class FindKthLargest {
+    
+        private static int findKthLargest(int[] num, int k) {
+            if (k < 1) {
+                throw new IllegalArgumentException("k < 1.");
+            }
+            if (num.length < 1) {
+                throw new IllegalArgumentException("num is empty.");
+            }
+            if (num.length < k) {
+                throw new IllegalArgumentException("num.length < k");
+            }
+            if (num.length == 1) {
+                return num[0];
+            }
+            PriorityQueue<Integer> priorityQueue 
+                    = new PriorityQueue<>(num.length, ((o1, o2) -> o2 - o1));
+            for (int e : num) {
+                priorityQueue.add(e);
+            }
+            for (int i = 0 ; i < k - 1 ; i ++ ) {
+                priorityQueue.poll();
+            }
+            return priorityQueue.poll();
+        }
+    
+        public static void main(String[] args) {
+            System.out.println(findKthLargest(new int[]{1}, 1));
+        }
+    
+    }
+
+```
+
+##### 合并k个有序数组
+
+```java
+package com.congee02.queue.practice;
+
+import com.congee02.queue.practice.utils.InputGenerateUtils;
+
+import java.util.*;
+
+/**
+ * 合并 k 个有序数组
+ */
+public class CombineSortedLists {
+
+    private static List<List<Integer>> randomSortedListList() {
+        List<List<Integer>> listList = InputGenerateUtils.randomIntegerListList();
+        for (List<Integer> list : listList) {
+            Collections.sort(list);
+            System.out.println(list);
+        }
+        return listList;
+    }
+
+    public static List<Integer> combineSortedLists(List<List<Integer>> listList) {
+        int size = listList.size();
+        int internalSizeTotal = 0;
+        int internalSizeMax = -1;
+        int[] sizeCache = new int[size];
+        for (int i = 0 ; i < size ; i ++ ) {
+            sizeCache[i] = listList.get(i).size();
+            internalSizeMax = Math.max(internalSizeMax, sizeCache[i]);
+            internalSizeTotal += sizeCache[i];
+        }
+        PriorityQueue<Integer> queue = new PriorityQueue(internalSizeTotal);
+        for (int j = 0 ; j < internalSizeMax ; j ++ ) {
+            for (int i = 0 ; i < size ; i ++ ) {
+                if (j >= sizeCache[i]) {
+                    continue;
+                }
+                queue.add(listList.get(i).get(j));
+            }
+        }
+        ArrayList<Integer> result = new ArrayList<>();
+        while (! queue.isEmpty()) {
+            result.add(queue.poll());
+        }
+        return result;
+    }
+
+    public static void main(String[] args) {
+        List<List<Integer>> listList = randomSortedListList();
+        System.out.println(combineSortedLists(listList));
+    }
+
+}
+
+```
+
+##### 前K个高频元素
+
+```java
+package com.congee02.queue;
+
+import com.congee02.queue.practice.utils.InputGenerateUtils;
+
+import java.util.*;
+
+/**
+ * 找出 K 个频率最高的元素
+ */
+public class FindKthFrequencyElements {
+
+    private static List<Integer> randomElementList() {
+        return InputGenerateUtils.randomIntegerList(20, 10);
+    }
+
+    private static class ElementFrequency<E> {
+        private E element;
+        private int count;
+
+        public ElementFrequency(E element) {
+            this.element = element;
+            this.count = 0;
+        }
+
+        public ElementFrequency(E element, int count) {
+            this.element = element;
+            this.count = count;
+        }
+
+        @Override
+        public String toString() {
+            return "ElementFrequency{" +
+                    "element=" + element +
+                    ", count=" + count +
+                    '}';
+        }
+    }
+
+    private static List<ElementFrequency> findKthFrequencyElements(List<Integer> list, int k) {
+        if (k < 1) {
+            throw new IllegalArgumentException("k < 1.");
+        }
+        if (list.isEmpty()) {
+            throw new IllegalArgumentException("num is empty.");
+        }
+        if (list.size() == 1) {
+            return List.of(new ElementFrequency(list.get(0), 1));
+        }
+        Map<Integer, Integer> elementCount = new HashMap<>() {
+            @Override
+            public Integer put(Integer key, Integer value) {
+                if (! this.containsKey(key)) {
+                    return super.put(key, 1);
+                }
+                Integer oldValue = super.get(key);
+                return super.put(key, oldValue + 1);
+            }
+        };
+        list.forEach(e -> {
+            elementCount.put(e, null);
+        });
+        PriorityQueue<Map.Entry<Integer, Integer>> queue
+                = new PriorityQueue<>(elementCount.size(), (o1, o2) -> o2.getValue() - o1.getValue());
+        Set<Map.Entry<Integer, Integer>> entries = elementCount.entrySet();
+        queue.addAll(entries);
+        ArrayList<ElementFrequency> result = new ArrayList<>(Math.min(k, entries.size()));
+        for (int i = 0 ; i < k && ! queue.isEmpty() ; i ++ ) {
+            Map.Entry<Integer, Integer> entry = queue.poll();
+            result.add(new ElementFrequency(entry.getKey(), entry.getValue()));
+        }
+        return result;
+    }
+
+    public static void main(String[] args) {
+        findKthFrequencyElements(randomElementList(), 10)
+                .forEach(System.out::println);
+    }
+
+}
+
+```
+
+
+
+##### 距离原点最近的K个点（欧几里德距离 和 曼哈顿距离）
+
+```java
+package com.congee02.queue.practice;
+
+import java.util.*;
+import java.util.function.Function;
+
+/**
+ * 寻找前 K 个最接近原点的二维点
+ */
+public class FindFirstKthClosetPointsToOrigin {
+
+    // 二维点类
+    private static class TwoDimensionDot {
+        private double x;
+        private double y;
+
+        public TwoDimensionDot(double x, double y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        // 计算曼哈顿距离到原点的方法
+        public double manhattanDistanceToOrigin() {
+            return Math.abs(x) + Math.abs(y);
+        }
+
+        // 计算欧几里德距离到原点的方法
+        public double euclideanDistanceToOrigin() {
+            return Math.sqrt(x * x + y * y);
+        }
+
+        @Override
+        public String toString() {
+            return "TwoDimensionDot{" +
+                    "x=" + x +
+                    ", y=" + y +
+                    '}';
+        }
+    }
+
+    private static final Random random = new Random();
+
+    // 生成随机的二维点
+    private static TwoDimensionDot randomTwoDimensionDot(double xBound, double yBound) {
+        return new TwoDimensionDot((random.nextDouble() * xBound) * (random.nextBoolean() ? -1 : 1), random.nextDouble() * yBound * (random.nextBoolean() ? -1 : 1));
+    }
+
+    // 生成随机的二维点列表
+    private static List<TwoDimensionDot> randomTwoDimensionDotList(double xBound, double yBound, int size) {
+        List<TwoDimensionDot> list = new ArrayList<>(size);
+        for (int i = 0 ; i < size ; i ++ ) {
+            list.add(randomTwoDimensionDot(xBound, yBound));
+        }
+        return list;
+    }
+
+    // 寻找前 K 个最接近原点的点
+    private static List<TwoDimensionDot> firstKthClosetPointsToOrigin(List<TwoDimensionDot> dots, int k, Function<TwoDimensionDot, Double> distanceCalculator) {
+        int size = dots.size();
+        if (k < 1) {
+            throw new IllegalArgumentException("k < 1.");
+        }
+        if (size < 1) {
+            throw new IllegalArgumentException("num is empty.");
+        }
+        if (size < k) {
+            throw new IllegalArgumentException("size < k");
+        }
+        if (size == 1) {
+            return List.of(dots.get(0));
+        }
+        PriorityQueue<TwoDimensionDot> queue = new PriorityQueue<>(size, (o1, o2) -> {
+            final double o1d, o2d;
+            if ((o1d = distanceCalculator.apply(o1)) == (o2d = distanceCalculator.apply(o2))) {
+                return 0;
+            } else if (o1d - o2d < 0) {
+                return -1;
+            }
+            return 1;
+        });
+        queue.addAll(dots);
+        ArrayList<TwoDimensionDot> result = new ArrayList<>();
+        for (int i = 0; i < k ; i ++ ) {
+            result.add(queue.poll());
+        }
+        return result;
+    }
+
+    // 寻找前 K 个最接近原点的点（使用曼哈顿距离）
+    private static List<TwoDimensionDot> firstManhattanKthClosetPointsToOrigin(List<TwoDimensionDot> dots, int k) {
+        return firstKthClosetPointsToOrigin(dots, k, TwoDimensionDot::manhattanDistanceToOrigin);
+    }
+
+    // 寻找前 K 个最接近原点的点（使用欧几里德距离）
+    private static List<TwoDimensionDot> firstEuclideanKthClosetPointsToOrigin(List<TwoDimensionDot> dots, int k) {
+        return firstKthClosetPointsToOrigin(dots, k, TwoDimensionDot::euclideanDistanceToOrigin);
+    }
+
+    public static void main(String[] args) {
+        // 生成随机二维点列表
+        List<TwoDimensionDot> dots = randomTwoDimensionDotList(20, 20, 20);
+        dots.forEach(System.out::println);
+        
+        // 寻找前 K 个最接近原点的点（曼哈顿距离）
+        System.out.println("===== Manhattan Distance =====");
+        firstManhattanKthClosetPointsToOrigin(dots, 3).forEach(System.out::println);
+        
+        // 寻找前 K 个最接近原点的点（欧几里德距离）
+        System.out.println("===== Euclidean Distance =====");
+        firstEuclideanKthClosetPointsToOrigin(dots, 3).forEach(System.out::println);
+    }
+
+}
+
+```
+
+#### 阻塞队列 BlockingQueue
+
+BlockingQueue 是 Java 中的一个接口，规范一个具有阻塞特性的队列。BlockingQueue 继承自 Queue 接口，提供了一组用于多线程编程的方法。
+
+| 方法                                                    | 描述                                                         |
+| ------------------------------------------------------- | ------------------------------------------------------------ |
+| `boolean add(E e)`                                      | 将元素添加到队列，如果队列已满则抛出异常。                   |
+| `boolean offer(E e, long timeout, TimeUnit unit)`       | 尝试将元素添加到队列，如果队列已满，则等待指定的时间，返回是否添加成功。 |
+| `void put(E e)`                                         | 将元素添加到队列，如果队列已满，则阻塞等待直到队列有空闲位置。 |
+| `E poll(long timeout, TimeUnit unit)`                   | 尝试从队列中取出元素，如果队列为空，则等待指定的时间，返回取出的元素。 |
+| `E take()`                                              | 从队列中取出元素，如果队列为空，则阻塞等待直到队列中有可取出的元素。 |
+| `int remainingCapacity()`                               | 返回队列中剩余的可用空间。                                   |
+| `int size()`                                            | 返回队列中当前的元素个数。                                   |
+| `boolean isEmpty()`                                     | 判断队列是否为空。                                           |
+| `boolean contains(Object o)`                            | 判断队列是否包含指定元素。                                   |
+| `boolean remove(Object o)`                              | 从队列中移除指定元素。                                       |
+| `int drainTo(Collection<? super E> c)`                  | 将队列中所有元素移动到给定集合，并返回移动的元素数量。       |
+| `int drainTo(Collection<? super E> c, int maxElements)` | 将队列中指定数量的元素移动到给定集合，并返回移动的元素数量。 |
+
+当 BlockingQueue 队列已满或者为空时，调用该方法的线程会被阻塞，直到有空闲位置（尝试加入）或者队列中有可取出的元素（尝试取出）。BlockingQueue 使得线程能够在适当的时机进行等待和唤醒，从而实现了线程之间的协调和同步。
+
+BlockingQueue 常用于 Producer-Consumer 模型中
+
+![8e798a4269f52db29bb044678414cca2](assets/8e798a4269f52db29bb044678414cca2.png)
+
+BlockingQueue 的实现类有：PriorityBlockingQueue，LinkedBlockingQueue，ArrayBlockingQueue，DelayQueue，SychronousQueue。
+
+具体实现类的区别在这暂且不表，在多线程部分中详细阐述。
+
+### Map:star:
+
+#### HashMap VS HashTable
+
+- 线程安全
+
+  HashMap 是非线程安全的（在多线程环境下使用 ConcurrentHashMap）；
+
+  HashTable 是线程安全的，其内部方法基本经过 sychronized 修饰。
+
+  ```java
+  public synchronized V put(K key, V value) {
+      // Make sure the value is not null
+      if (value == null) {
+          throw new NullPointerException();
+      }
+  
+      // Makes sure the key is not already in the hashtable.
+      Entry<?,?> tab[] = table;
+      int hash = key.hashCode();
+      int index = (hash & 0x7FFFFFFF) % tab.length;
+      @SuppressWarnings("unchecked")
+      Entry<K,V> entry = (Entry<K,V>)tab[index];
+      for(; entry != null ; entry = entry.next) {
+          if ((entry.hash == hash) && entry.key.equals(key)) {
+              V old = entry.value;
+              entry.value = value;
+              return old;
+          }
+      }
+  
+      addEntry(hash, key, value, index);
+      return null;
+  }
+  ```
+
+  
+
+- 效率
+
+  HashTable 需要保证线程安全，所以效率逊于 HashMap。
+
+  需要阐明，HashTable 基本被淘汰，不要在代码中使用。
+
+- Null Key 和 Null Value
+
+  HashMap 支持 Null Key 和 Null Value，和其他 Key 一样，Null Key 唯一，Null Value 不唯一；
+
+  ```java
+  package com.congee02.map;
+  
+  import java.util.HashMap;
+  import java.util.Hashtable;
+  
+  public class HashTableVSHashMap {
+  
+      private final static HashMap<String, String> map = new HashMap<>();
+      private final static Hashtable<String, String> table = new Hashtable<>();
+  
+      private static void nullKeyNullValueSupport() {
+          System.out.println("===== HashMap Supports Null Key and Null Value =====");
+          map.put(null, "NullKey->Value");
+          map.put("Key->NullValue", null);
+          System.out.println(map);
+          System.out.println("===== HashTable doesn't Supports Null Key and Null Value =====");
+          try {
+              table.put(null, "NullKey->Value");
+              System.out.println(table);
+          } catch (NullPointerException e) {
+              System.err.println("HashTable 不支持 NullKey");
+          }
+          try {
+              table.put("Key->NullValue", null);
+              System.out.println(table);
+          } catch (NullPointerException e) {
+              System.err.println("HashTable 不支持 NullValue");
+          }
+  
+          map.clear();
+          table.clear();
+      }
+  
+      public static void main(String[] args) {
+          nullKeyNullValueSupport();
+      }
+  
+  }
+  
+  ```
+
+  运行结果：
+
+  ```apl
+  ===== HashMap Supports Null Key and Null Value =====
+  {null=NullKey->Value, Key->NullValue=null}
+  ===== HashTable doesn't Supports Null Key and Null Value =====
+  HashTable 不支持 NullKey
+  HashTable 不支持 NullValue
+  ```
+
+  而 HashTable 不支持 Null Key 和 Null Value。注释：NullPointerException  if the key or value is {@code null}。
+
+  如果 键 或者 值 是 null，则抛出 NullPointerException
+
+  ```java
+  /**
+   * Maps the specified {@code key} to the specified
+   * {@code value} in this hashtable. Neither the key nor the
+   * value can be {@code null}. <p>
+   *
+   * The value can be retrieved by calling the {@code get} method
+   * with a key that is equal to the original key.
+   *
+   * @param      key     the hashtable key
+   * @param      value   the value
+   * @return     the previous value of the specified key in this hashtable,
+   *             or {@code null} if it did not have one
+   * @exception  NullPointerException  if the key or value is
+   *               {@code null}
+   * @see     Object#equals(Object)
+   * @see     #get(Object)
+   */
+  public synchronized V put(K key, V value) {
+      // Make sure the value is not null
+      if (value == null) {
+          throw new NullPointerException();
+      }
+  
+      // Makes sure the key is not already in the hashtable.
+      Entry<?,?> tab[] = table;
+      int hash = key.hashCode();
+      int index = (hash & 0x7FFFFFFF) % tab.length;
+      @SuppressWarnings("unchecked")
+      Entry<K,V> entry = (Entry<K,V>)tab[index];
+      for(; entry != null ; entry = entry.next) {
+          if ((entry.hash == hash) && entry.key.equals(key)) {
+              V old = entry.value;
+              entry.value = value;
+              return old;
+          }
+      }
+  
+      addEntry(hash, key, value, index);
+      return null;
+  }
+  ```
+
+- 初始容量 和 扩充容量
+
+  HashTable 默认的初始容量为 11，之后每次扩充，容量变为原来的 2 倍加一。指定初始容量时，HashTable 直接使用给定的初始容量。
+
+  ```java
+  // Hashtable 构造函数
+  public Hashtable(int initialCapacity, float loadFactor) {
+      if (initialCapacity < 0)
+          throw new IllegalArgumentException("Illegal Capacity: "+
+                                             initialCapacity);
+      if (loadFactor <= 0 || Float.isNaN(loadFactor))
+          throw new IllegalArgumentException("Illegal Load: "+loadFactor);
+  
+      if (initialCapacity==0)
+          initialCapacity = 1;
+      this.loadFactor = loadFactor;
+      // 直接使用给定的初始容量
+      table = new Entry<?,?>[initialCapacity];
+      threshold = (int)Math.min(initialCapacity * loadFactor, MAX_ARRAY_SIZE + 1);
+  }
+  ```
+
+  HashMap   默认的初始容量为 16，之后每次扩充，容量变为原来的 2 倍。指定初始容量时，HashMap 会向上取大于等于给定容量最小的 $2 ^ n$ 的数作为初始容量。
+
+  ```java
+  // HashMap 构造函数
+  public HashMap(int initialCapacity, float loadFactor) {
+      if (initialCapacity < 0)
+          throw new IllegalArgumentException("Illegal initial capacity: " +
+                                             initialCapacity);
+      if (initialCapacity > MAXIMUM_CAPACITY)
+          initialCapacity = MAXIMUM_CAPACITY;
+      if (loadFactor <= 0 || Float.isNaN(loadFactor))
+          throw new IllegalArgumentException("Illegal load factor: " +
+                                             loadFactor);
+      this.loadFactor = loadFactor;
+      this.threshold = tableSizeFor(initialCapacity);
+  }
+  
+  // 向上取大于等于给定容量最小的 $2 ^ n$ 的数作为初始容量。
+  static final int tableSizeFor(int cap) {
+      int n = -1 >>> Integer.numberOfLeadingZeros(cap - 1);
+      return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
+  }
+  ```
+
+- 底层数据结构
+
+  Hashtable 使用传统的数组和链表。
+
+  ```java
+  public class Hashtable<K,V>
+      extends Dictionary<K,V>
+      implements Map<K,V>, Cloneable, java.io.Serializable {
+  
+      /**
+       * 数组
+       */
+      private transient Entry<?,?>[] table;
+  	
+      /**
+       * 链表
+       */
+      private static class Entry<K,V> implements Map.Entry<K,V> {
+          final int hash;
+          final K key;
+          V value;
+          Entry<K,V> next;
+  
+          protected Entry(int hash, K key, V value, Entry<K,V> next) {
+              this.hash = hash;
+              this.key =  key;
+              this.value = value;
+              this.next = next;
+          }
+      }
+  }
+  ```
+
+  在JDK1.8后，当 HashMap 长度某个链表长度大于树化阈值（TREEIFY_THRESHOLD，默认为8）时，首先检查当前数组的长度是否大于等于最小树化容量（MIN_TREEIFY_CAPACITY，默认为 64），如果否，对数组进行扩容来减少哈希冲；如果是，将链表转化为红黑树。当一个红黑树的节点数量小于等于退化阈值时（UNTREEIFY_THRESHOLD，默认为 6），将红黑树退化为链表。
+
+  树化阈值、退化阈值、最小树化容量
+
+  ```java
+  /**
+   * The bin count threshold for using a tree rather than list for a
+   * bin.  Bins are converted to trees when adding an element to a
+   * bin with at least this many nodes. The value must be greater
+   * than 2 and should be at least 8 to mesh with assumptions in
+   * tree removal about conversion back to plain bins upon
+   * shrinkage.
+   */
+  static final int TREEIFY_THRESHOLD = 8;
+  
+  /**
+   * The bin count threshold for untreeifying a (split) bin during a
+   * resize operation. Should be less than TREEIFY_THRESHOLD, and at
+   * most 6 to mesh with shrinkage detection under removal.
+   */
+  static final int UNTREEIFY_THRESHOLD = 6;
+  
+  /**
+   * The smallest table capacity for which bins may be treeified.
+   * (Otherwise the table is resized if too many nodes in a bin.)
+   * Should be at least 4 * TREEIFY_THRESHOLD to avoid conflicts
+   * between resizing and treeification thresholds.
+   */
+  static final int MIN_TREEIFY_CAPACITY = 64;
+  ```
+  
+  尝试向 HashMap 添加一个 Entry
+  
+  ```java
+  public V put(K key, V value) {
+      return putVal(hash(key), key, value, false, true);
+  }
+  
+  // putVal 方法用于将键值对插入 HashMap
+  // hash：键的哈希码
+  // key：要插入的键
+  // value：要插入的值
+  // onlyIfAbsent：是否仅在键不存在的情况下插入
+  // evict：是否在进行扩容时尝试删除最老的条目来释放空间
+  final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
+                 boolean evict) {
+      Node<K,V>[] tab; Node<K,V> p; int n, i;
+      // 获取当前 table 和 table 长度
+      // 如果当前 table 为 null 或者 table 为空
+      // 则初始化此 table，并重新获取 table 和 table 的长度
+      if ((tab = table) == null || (n = tab.length) == 0)
+          n = (tab = resize()).length;
+      // 取得哈希后的值，赋值给 i，然后将哈希后得到的首个节点赋值给 p。
+      // 当前链表没有节点，不存在哈希冲突
+      if ((p = tab[i = (n - 1) & hash]) == null)
+          // 直接创建新节点，并直接插入该链表
+          tab[i] = newNode(hash, key, value, null);
+      else {
+          // 存在哈希冲突
+          Node<K,V> e; K k;
+          // 链表首个节点Key的相等（哈希相等或者(== 或者 equals 等)）
+          if (p.hash == hash &&
+              ((k = p.key) == key || (key != null && key.equals(k))))
+              // 当前 Key 的 Entry 已经存在，将旧的 Entry 保存到 e 中
+              e = p;
+          
+         	// 如果当前节点为红黑树节点
+          else if (p instanceof TreeNode)
+              // 使用红黑树特有的插入方式
+              e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+          // 当前节点不为红黑树节点，则向下继续寻找有没有相同的 Key
+          else {
+              for (int binCount = 0; ; ++binCount) {
+                  // 找不到相同的 Key，插入一个节点，插入后，
+                  // 检查当前链表是否超过树化阈值；若是，则尝试将链表转化为红黑树
+                  if ((e = p.next) == null) {
+                      p.next = newNode(hash, key, value, null);
+                      if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                          // 尝试将当前链表转为红黑树
+                          treeifyBin(tab, hash);
+                      break;
+                  }
+                  // 找到了相同的 Key，停止寻找，并赋值 e 给 p
+                  if (e.hash == hash &&
+                      ((k = e.key) == key || (key != null && key.equals(k))))
+                      break;
+                  p = e;
+              }
+          }
+          // 已经存在该 Key 的 Entry
+          if (e != null) { // existing mapping for key
+              // 得到旧值
+              V oldValue = e.value;
+              // 当 onlyIfAbsent 为 false 时，无论键是否已存在，都会执行插入操作。
+              if (!onlyIfAbsent || oldValue == null)
+                  // 更新值
+                  e.value = value;
+              // 该方法暂时为空方法
+              afterNodeAccess(e);
+              // 返回更新前的旧值
+              return oldValue;
+          }
+      }
+      ++modCount;
+      // 如果当前数组大小超过阈值，则扩展数组
+      if (++size > threshold)
+          resize();
+      // 该方法暂时为空方法
+      afterNodeInsertion(evict);
+      return null;
+  }
+  
+  
+  // 将链表树化为红黑树
+  final void treeifyBin(Node<K,V>[] tab, int hash) {
+      int n, index; Node<K,V> e;
+      // 当数组为空，或者数组的长度小于最小树化容量时，尝试扩展数组容量后直接结束
+      if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
+          resize();
+      // 如果桶中存在节点
+      else if ((e = tab[index = (n - 1) & hash]) != null) {
+          TreeNode<K,V> hd = null, tl = null;
+          do {
+              // 将链表中的节点转换为红黑树节点
+              TreeNode<K,V> p = replacementTreeNode(e, null);
+              if (tl == null)
+                  hd = p;
+              else {
+                  p.prev = tl;
+                  tl.next = p;
+              }
+              tl = p;
+          } while ((e = e.next) != null);
+          // 将转换后的红黑树设置到对应桶中
+          if ((tab[index] = hd) != null)
+              hd.treeify(tab);
+      }
+  }
+  ```
+  
+  
+
+#### HashMap VS HashSet 的区别
+
+HashSet 的较底层数据结构是 HashMap。HashSet 将其内容置于 HashMap 的 Key 中，利用 Map 的 Key 唯一的性质，用一个统一的 Object对象(一个被称为PRESENT的静态常量) 充当 Value，并以此实现 Set 操作。
+
+```java
+public class HashSet<E>
+    extends AbstractSet<E>
+    implements Set<E>, Cloneable, java.io.Serializable
+{
+    static final long serialVersionUID = -5024744406713321676L;
+
+    // 较底层数据结构为 HashMap
+    private transient HashMap<E,Object> map;
+
+    // 统一的 Object对象
+    private static final Object PRESENT = new Object();
+    
+    // 基于 HashMap 添加元素
+    public boolean add(E e) {
+        return map.put(e, PRESENT)==null;
+    }
+    
+    // 其他代码 ...
+    
+}
+```
+
+HashMap 和 HashSet 的简要对比
+
+|               `HashMap`                |                          `HashSet`                           |
+| :------------------------------------: | :----------------------------------------------------------: |
+|           实现了 `Map` 接口            |                       实现 `Set` 接口                        |
+|               存储键值对               |                          仅存储对象                          |
+|     调用 `put()`向 map 中添加元素      |             调用 `add()`方法向 `Set` 中添加元素              |
+| `HashMap` 使用键（Key）计算 `hashcode` | `HashSet` 使用成员对象来计算 `hashcode` 值，对于两个对象来说 `hashcode` 可能相同，所以`equals()`方法用来判断对象的相等性 |
+
+#### HashMap VS TreeMap
+
+HashMap 和 TreeMap 都继承自 AbstractMap，都实现了 Map 的基本功能，但是需要注意，TreeMap 在此基础上还实现了 SortedMap 接口的内容
+
+
 
 ## :monkey:泛型
 
@@ -6140,6 +7229,10 @@ pause 指令能让自旋失败时 CPU 睡眠一小段时间再继续自旋，从
 
 1. 使用JDK 1.5开始就提供的`AtomicReference`类保证对象之间的原子性，把多个变量放到一个对象里面进行CAS操作；
 2. 使用锁。锁内的临界区代码可以保证只有当前线程能操作。
+
+
+
+### :moon:BlockingQueue，阻塞队列
 
 ### :first_quarter_moon:AbstractQueuedSynchronizer, AQS
 
