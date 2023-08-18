@@ -1,3 +1,9 @@
+# 参考
+
+JavaGuide: https://javaguide.cn/home.html
+
+Java 进阶指南: https://tobebetterjavaer.com/
+
 # Java
 
 ## :eagle:Java 内存管理
@@ -201,7 +207,7 @@ Java 中，内存泄露是指程序中的对象不再被使用时被没有并正
 
 
 
-## :hatching_chick::first_quarter_moon:集合框架
+## :hatching_chick:集合框架
 
 ![Java.util.Collection_hierarchy](assets/Java.util.Collection_hierarchy.svg)
 
@@ -2588,7 +2594,7 @@ final V putVal(K key, V value, boolean onlyIfAbsent) {
 
 在使用迭代器遍历集合时，迭代器会记录创建时的 modCount 值，作为期望的 modCount 值（expectedModCount），然后在每次迭代时都会检查当前的 modCount 值是否与创建时的相同，如果发现 modCount 不等于 expectedModCount，则说明在遍历过程中集合结构发生了改变，可能导致不一致，此时会抛出 ConcurrentModificationException 异常，以警示在迭代过程中集合结构发生了改变。
 
-#### :moon:ConcurrentHashMap 和 Hashtable 都是线程安全的，两者有什么区别
+#### ConcurrentHashMap 和 Hashtable 都是线程安全的，两者有什么区别
 
 ConcurrentHashMap 和 Hashtable 都是用于多线程环境下进行并发访问的数据结构，都提供了一定程度的线程安全性。然而，两者在实现和性能方面存在一些重要区别。
 
@@ -7746,21 +7752,21 @@ IO 即 Input/Output，输入和输出。数据输入到计算机内存的过程�
 
 - InputStream：字节输入流
 - OutputStream：字节输出流
-- Reader：字符输入流
-- Writer：字符输出流
+- Reader：字符输入流，InputStream 的子类
+- Writer：字符输出流，InputStream 的子类
 
 ### 字节流
 
-#### :moon:InputStream
+#### InputStream
 
-Java 中的 InputStream 是一个字节输入流的抽象基类，用于从不同数据源中读取字节数据。它是输入流的基础接口，用于从不同数据源中读取字节数据。
+Java 中的 InputStream 是一个字节输入流的抽象基类，用于从不同数据源中读取字节数据。它是输入流的基础接口，用于从不同数据源中读取字节数据。数据源可以是文件，可以是序列化文件，不同的数据源有不同的 InputStream 实现：FileInputStream(数据源是文件)，ObjectInputStream(数据源是对象序列化文件) ...
 
 InputStream 常用方法：
 
 | 方法                                            | 方法描述                                                     |
 | ----------------------------------------------- | ------------------------------------------------------------ |
 | int read()                                      | 从输入流读取下一个字节数据，并且返回读取的字节。正常读取时，返回的范围为 [0, 255]；如果读到流的末尾，则返回 -1 |
-| int read(byte[] buffer)                         | 从输入流读取字节数据填充到给定的字节数组 buffer 中，返回实际读取的字节数。如果没有更多的数据可读，则返回 -1 |
+| int read(byte[] buffer)                         | 从输入流读取字节数据填充到给定的字节数组 buffer 中，返回实际读取的字节数。如果没有更多的数据可读，则返回 -1；等价于 read(buffer, 0, buffer.length) |
 | int read(byte[] buffer, int offset, int length) | 从偏移量 offset 开始，从输入流读取字节数据填充到指定的字节数组 buffer 中，最多读取 length  个字节，返回实际读取到的字节数。如果没有更多的数据可读，则返回 -1 |
 | long skip(long n)                               | 跳过输入流中的 n 个字节不读，返回实际跳过的字节数            |
 | int available()                                 | 返回在没有阻塞的情况下可以从输入流读取的字节数，通常用于检查还有多少字节可读 |
@@ -7768,21 +7774,921 @@ InputStream 常用方法：
 
 从 JDK9 开始，InputStream 新增了一些加强方法：
 
-| 方法 | 方法描述 |
-| ---- | -------- |
-|      |          |
+| 方法                                       | 方法描述                                                 |
+| ------------------------------------------ | -------------------------------------------------------- |
+| byte[] readAllBytes()                      | 读取输入流中所有字节，返回字节数组                       |
+| int readNBytes(byte[] b, int off, int len) | 阻塞直到读取 len 个字节到 buffer，返回实际读取的字节数   |
+| long transferTo(OutputStream out)          | 读取当前流所有字节并写入到给定的输出流，返回写入的字节数 |
+
+FileInputStream 是一个典型的字节输入流类，用于从文件中读取二进制数据。
+
+比如，从 input-file.txt 文件中读取数据，跳过前缀：
+
+input-file.txt
+
+```
+PREFIX: DATA1
+```
+
+FileInputStreamDemo.java
+
+```java
+package com.congee02.bytes;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+/**
+ * 以 FileInputStream 为例，演示 InputStream 的基本使用方法
+ */
+public class FileInputStreamDemo {
+
+    private final static String PREFIX = "PREFIX: ";
+
+    public static void main(String[] args) {
+        // 使用 try-with-resource
+        try (InputStream in = new FileInputStream("input-file.txt")) {
+            // 查看流中可读的字节数
+            System.out.println("Remaining Bytes: " + in.available());
+            int readByte;
+            long prefixSkip = PREFIX.length();
+            long actualSkipBytes = in.skip(prefixSkip);
+            System.out.println("Skip the prefix, the actual skip bytes: " + actualSkipBytes);
+            System.out.print("Reading the content: ");
+            // 读取数据
+            while ((readByte = in.read()) != -1) {
+                System.out.print((char) readByte);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+}
 
 
+```
+
+运行输出：
+
+```java
+Remaining Bytes: 13
+Skip the prefix, the actual skip bytes: 8
+Reading the content: DATA1
+```
+
+在上述的代码中，我们使用 InputStream#read() 函数逐字节的读取 input-file.txt 文件，可以想到，这样做会频繁调用 IO 操作，导致线程在等待 IO 的时间损耗较长，导致线程频繁阻塞。
+
+因此，我们需要使用 int read(byte[] buffer) 方法，打开文件资源后，将多个字节先读取到缓冲 buffer中，等到缓冲满或者是文件读完后，再将读到的字节传给程序。
+
+下面分别使用带缓冲读取和逐字节读取来读取一个较大的 txt 文件，并对比性能。
+
+测试性能的小工具类
+
+```java
+package com.congee02;
+
+public final class SimpleProfileUtils {
+
+    private SimpleProfileUtils() {}
+
+    /**
+     * 测试程序运行的纳秒时间
+     * @param runnable 运行的代码块
+     * @return 程序运行的纳秒时间
+     */
+    public static long profile(Runnable runnable) {
+        long start = System.nanoTime();
+        runnable.run();
+        long end = System.nanoTime();
+        return end - start;
+    }
+
+}
+
+```
+
+对比测试
+
+```java
+package com.congee02.bytes;
+
+import com.congee02.SimpleProfileUtils;
+
+import java.io.*;
+
+public class FileInputStreamWithBufferVsWithoutBuffer {
+
+    private final static String READ_FILE_PATH = "1984.txt";
+
+    /**
+     * 带缓存地读取
+     */
+    private final static Runnable readWithBuffer = () -> {
+        byte[] buffer = new byte[4096];
+        int readByteNum;
+        try (InputStream in = new FileInputStream(READ_FILE_PATH)) {
+            while ((readByteNum = in.read(buffer)) != -1) {
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+    /**
+     * 不带缓存地读取
+     */
+    private final static Runnable readWithoutBuffer = () -> {
+        int readByte;
+        try (InputStream in = new FileInputStream(READ_FILE_PATH)) {
+            while ((readByte = in.read()) != -1) {
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+    public static void main(String[] args) {
+        System.out.println("不带缓存地读取\t1984.txt 文件:\t" + SimpleProfileUtils.profile(readWithoutBuffer));
+        System.out.println("带缓存地读取\t1984.txt 文件:\t" + SimpleProfileUtils.profile(readWithBuffer));
+    }
+
+}
+
+```
+
+运行结果：
+
+```java
+不带缓存地读取	1984.txt 文件:	74251900
+带缓存地读取	1984.txt 文件:	234400
+```
+
+可见，带缓存读取文件时，因为一次性读取多个字节，所以无需频繁调用 IO 操作，效率远高于逐字节读取。事实上，JDK 提供了 BufferedInputStream，是 InputStream 的装饰器，用于增强 InputStream，提供了带缓冲读取流的功能。
+
+#### BufferedInputStream
+
+![64436862](assets/64436862.png)
+
+BufferedInputStream 是 Java 标注库中的一个类，用于读取数据时提供缓冲功能，以提高输入操作的效率。它是 InputStream 的一个装饰器（继承自 FilterInputStream），通过在其上添加缓冲来减少直接从底层输入流读取数据的次数。
+
+BufferedInputStream 构造器
+
+```java
+// in:   装饰的 in 对象
+// size: 缓冲区大小
+public BufferedInputStream(InputStream in, int size) {
+    // FilterInputStream
+    super(in);
+    if (size <= 0) {
+        throw new IllegalArgumentException("Buffer size <= 0");
+    }
+    buf = new byte[size];
+}
+
+// 使用默认的缓冲区大小 (8 KiB)
+public BufferedInputStream(InputStream in) {
+    this(in, DEFAULT_BUFFER_SIZE);
+}
+```
+
+对比 InputStream 和 BufferedInputStream 逐字节读取的性能
+
+```java
+package com.congee02.bytes.buffer;
+
+import com.congee02.utils.SimpleProfileUtils;
+
+import java.io.*;
+
+public class BufferedInputStreamRead {
+
+    private final static String READ_FILE_PATH = "1984.txt";
+
+    private static FileInputStream getFileInputStream() throws FileNotFoundException {
+        return new FileInputStream(READ_FILE_PATH);
+    }
+
+    /**
+     * 使用 BufferedInputStream 逐字节读取
+     */
+    private static final Runnable bufferedByteByByteRead = () -> {
+        int readByte;
+        try (BufferedInputStream bufferedIn = new BufferedInputStream(getFileInputStream())) {
+            while ((readByte = bufferedIn.read()) != -1) {
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+    /**
+     * 不带缓存地逐字节读取
+     */
+    private final static Runnable naiveByteByByteRead = () -> {
+        int readByte;
+        try (InputStream in = new FileInputStream(READ_FILE_PATH)) {
+            while ((readByte = in.read()) != -1) {
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+
+
+    public static void main(String[] args) {
+        System.out.println("bufferedByteByByteRead: " + SimpleProfileUtils.profile(bufferedByteByByteRead));
+        System.out.println("naiveByteByByteRead: " + SimpleProfileUtils.profile(naiveByteByByteRead));
+    }
+
+}
+
+```
+
+运行结果：
+
+```java
+bufferedByteByByteRead: 2314600
+naiveByteByByteRead: 76154600
+```
+
+不出意外地，使用 BufferedInputStream 要比直接使用 InputStream 逐字节读取要快得多。这是因为 BufferedInputStream 会先读取固定长度（默认为 8192，即 8 KiB）的数据存储到 byte 数组缓冲区（buf 数组），然后逐字节读取时，先检查缓冲区是否被读完，如果未被读完，则从缓冲区中读取一个字节，并将指针前移，表示已经读过一个字节。可以在 BufferedInputStream 重写的 read() 方法中看到这这个过程：
+
+```java
+// 读取一个字节
+public synchronized int read() throws IOException {
+    // count 指代当前缓冲区的有效字节数
+    // pos   指代当前缓冲区的位置位置索引
+    // pos >= count 表示当前缓冲区已经读完
+    if (pos >= count) {
+        // 重新从流中读取字节到缓冲区
+        fill();
+        // 如果当前缓冲区还是已经读完，
+        // 则表示整个流已经被读完，返回 -1
+        if (pos >= count)
+            return -1;
+    }
+    // 尝试得到缓冲区，从缓冲区取数后 pos ++。
+    // 只取其末尾 8 位（1 个字节）
+    return getBufIfOpen()[pos++] & 0xff;
+}
+
+// 确保当前流关闭后，缓冲区没有被置空
+private byte[] getBufIfOpen() throws IOException {
+    byte[] buffer = buf;
+    if (buffer == null)
+        throw new IOException("Stream closed");
+    return buffer;
+}
+```
+
+但是，当调用 read(byte[] b, int offset, int length) 或者 read(byte[]) 来读取流中字节时，BufferedInputStream 和 InputStream 的实现方式相同，因此性能几乎没有差距，或者说性能差距小到可以省略。
+
+BufferedInputStream 的 read(byte[] b, int offset, int length) 实现来自于其父类 FilterInputStream，直接调用被装饰对象的 read(byte[], int, int)。
+
+``` java
+/**
+ * 被装饰对象
+ */
+protected volatile InputStream in;
+
+public int read(byte b[], int off, int len) throws IOException {
+    return in.read(b, off, len);
+}
+```
+
+我们用代码实际测试一下，因为 IO 读取速度不稳定，所以取其平均比值对比
+
+```java
+package com.congee02.bytes.buffer;
+
+import com.congee02.utils.SimpleProfileUtils;
+
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+
+public class BufferedInputStreamBufferRead {
+
+    private final static String READ_FILE_PATH = "1984.txt";
+
+    private static FileInputStream getFileInputStream() throws FileNotFoundException {
+        return new FileInputStream(READ_FILE_PATH);
+    }
+
+    private final static int READ_BYTE_BUFFER_SIZE = 8192;
+
+    /**
+     * BufferedInputStream 使用 buffer 读取
+     */
+    private final static Runnable bufferedInBuffer = () -> {
+        try (BufferedInputStream bufferedIn
+                     = new BufferedInputStream(getFileInputStream(), READ_BYTE_BUFFER_SIZE)) {
+            byte[] buffer = new byte[READ_BYTE_BUFFER_SIZE];
+            int readLength;
+            while ((readLength = bufferedIn.read(buffer)) != -1) {
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+    /**
+     * InputStream 使用 buffer 读取
+     */
+    private static final Runnable naiveInBuffer = () -> {
+        try (FileInputStream in = getFileInputStream()) {
+            byte[] buffer = new byte[READ_BYTE_BUFFER_SIZE];
+            int readLength;
+            while ((readLength = in.read(buffer)) != -1) {
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+    public static void main(String[] args) {
+        double avg = 0.0;
+        for (int i = 0 ; i < 100000 ; i ++) {
+            final long y = SimpleProfileUtils.profile(naiveInBuffer);
+            final long x = SimpleProfileUtils.profile(bufferedInBuffer);
+            avg += x / (double) y / (double) 100000;
+        }
+        System.out.println("bufferedInBuffer/naiveInBuffer: " + avg);
+    }
+
+}
+
+```
+
+运行结果：
+
+```java
+bufferedInBuffer/naiveInBuffer: 1.1311103060210648
+```
+
+可以看到 BufferedInputSream 稍慢于 InputStream，这是因为 BufferedInputStream 需要额外调用其构造器来申请缓存区空间（buf = new byte[size];）。
+
+一般情况下，我们不单独使用 InputStream，而是使用经过 BufferedInputStream 装饰的 InputStream。再者，BufferedInputStream 是线程安全的，适用于并发环境。
 
 #### OutputStream
 
+OutputStream 用于将内存中的字节信息写入到目的地。OutputStream 常用 API：
+
+| 方法                                   | 方法描述                                             |
+| -------------------------------------- | ---------------------------------------------------- |
+| void write(int b)                      | 将一个字节写入到输出流                               |
+| void write(byte[] b)                   | 将字节数组写入到输出流，等价于 wirte(b, 0, b.length) |
+| void write(byte[] b, int off, int len) | 从数组b 的 off 位置开始写入长度为  len 到输出流      |
+| void flush()                           | 刷新输出流，确保所有缓冲的数据都被写入输入流         |
+| void close()                           | 关闭输出流，释放相关资源                             |
+
+FileOutputStream 是常见的字节输出流对象，可以向指定文件写入字节数据。
+
+创建一个 output-file.txt（如果没有），并覆盖写入 "Hello, Java IO."
+
+```java
+package com.congee02.bytes.out;
+
+import java.io.FileOutputStream;
+import java.io.IOException;
+
+public class FileOutputStreamDemo {
+
+    private static final String WRITE_FILE_PATH = "output-file.txt";
+    private static final String WRITE_CONTENT = "Hello, Java IO.";
+
+    public static void main(String[] args) {
+        try (FileOutputStream out = new FileOutputStream(WRITE_FILE_PATH)) {
+            byte[] bytes = WRITE_CONTENT.getBytes();
+            out.write(bytes);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+}
+
+```
+
+output-file.txt
+
+```
+Hello, Java IO.
+```
+
+同样的，OutputStream 写入时，如果是单字节一次次写入，则会频繁使用 IO 操作，使得线程阻塞时间较长，影响整体性能。自然地，我们可以通过创建缓冲区来避免过于频繁的 IO 操作，来减少线程因为 IO 阻塞带来的时间损耗。这里不再赘述。
+
+read(int) 和 read(byte[]) 对比：
+
+```java
+package com.congee02.bytes.out;
+
+import com.congee02.utils.SimpleProfileUtils;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+
+public class FileOutputStreamWithBufferVsWithoutBuffer {
+
+    private final static String longString;
+
+    private final static String WRITE_FILE_PATH = "1984.txt";
+
+    static {
+        StringBuilder sb = new StringBuilder();
+        try (final BufferedInputStream
+                     in = new BufferedInputStream(new FileInputStream("1984.txt"))) {
+            byte[] buffer = new byte[8192];
+            int readLength;
+            while ((readLength = in.read(buffer)) != -1) {
+                sb.append(new String(buffer, 0, readLength));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        longString = sb.toString();
+    }
+
+    private final static Runnable writeWithBuffer = () -> {
+        try (FileOutputStream out = new FileOutputStream(WRITE_FILE_PATH)) {
+            out.write(longString.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+    private final static Runnable writeWithoutBuffer = () -> {
+        try (FileOutputStream out = new FileOutputStream(WRITE_FILE_PATH)) {
+            byte[] bytes = longString.getBytes(StandardCharsets.UTF_8);
+            for (byte b : bytes) {
+                out.write(b);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+    public static void main(String[] args) {
+        System.out.println("writeWithBuffer: " + SimpleProfileUtils.profile(writeWithBuffer));
+        System.out.println("writeWithoutBuffer: " + SimpleProfileUtils.profile(writeWithoutBuffer));
+    }
+
+}
+
+```
+
+运行结果
+
+```java
+writeWithBuffer: 552700
+writeWithoutBuffer: 3924600
+```
+
+同样的，既然 InputStream 有 BufferedInputStream，那么 OutputStream 可以有 BufferedOutputStream，用于创建带缓存的，线程安全增强的 OutputStream。
+
+#### BufferedOutputStream
+
+![64436971](assets/64436971.png)
+
+BufferedOutputStream 是 Java 中继承于 FilterOutputStream （表明是个装饰类） 的一个类，它提供了一种将字节数据写入输出流并使用内部缓冲区的方法。使用 BufferedOutputStream 的主要目的是提高写操作的效率，特别是处理小块数据时。
+
+类似于 BufferedInputStream ，BufferedOutputStream 内部也维护了一个缓冲区，并且，这个缓存区的大小也是 **8192** 字节
+
+同样的，BufferedOutputStream 对单字节写入做了优化。
+
+```java
+package com.congee02.bytes.out.buffer;
+
+import com.congee02.utils.SimpleProfileUtils;
+
+import java.io.*;
+
+public class BufferedOutputStreamByteByByteRead {
+
+    private final static String longString;
+    static {
+        StringBuilder sb = new StringBuilder();
+        try (final BufferedInputStream
+                     in = new BufferedInputStream(new FileInputStream("1984.txt"))) {
+            byte[] buffer = new byte[8192];
+            int readLength;
+            while ((readLength = in.read(buffer)) != -1) {
+                sb.append(new String(buffer, 0, readLength));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        longString = sb.toString();
+    }
+    private final static byte[] writeBytes = longString.getBytes();
+
+    private final static String WRITE_FILE_PATH = "1984-copy-1.txt";
+
+    private static FileOutputStream getFileOutputStream() throws FileNotFoundException {
+        return new FileOutputStream(WRITE_FILE_PATH);
+    }
+
+    private final static Runnable bufferedByteByByteWrite = () -> {
+        try (BufferedOutputStream bos = new BufferedOutputStream(getFileOutputStream())) {
+            for (byte b : writeBytes) {
+                bos.write(b);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+    private final static Runnable naiveByteByByteWrite = () -> {
+        try (FileOutputStream out = getFileOutputStream()) {
+            for (byte b : writeBytes) {
+                out.write(b);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+    public static void main(String[] args) {
+        System.out.println("bufferedByteByByteWrite: " + SimpleProfileUtils.profile(bufferedByteByByteWrite));
+        System.out.println("naiveByteByByteWrite: " + SimpleProfileUtils.profile(naiveByteByByteWrite));
+    }
+
+}
+
+```
+
+运行结果：
+
+```java
+bufferedByteByByteWrite: 9579300
+naiveByteByByteWrite: 121322700
+```
+
+BufferedOutputStream 也重写了父类 FilterOutputStream 的write(byte[] b, int off, int len)
+
+开发中不直接使用 OutputStream，而先使用 BufferedOutputSteam 装饰后使用。
+
 ### 字符流
 
-### 字节缓冲流
+字符流处理的是字符，字节流处理的是字节。但是实际上，字符流底基于字节流，只是额外提供了一层字符编码（UTF-8、UTF-16）的抽象。也可以说：字符流处理的是经过编码的字节流。
 
-### 字符缓冲流
+既然字符流和字节流本质都是操作字节，那为什么会有个字符流呢？
+
+- **字符编码和国际化支持：**  文本数据在计算机内部以字节形式表示，但这些字节需要根据特定的字符编码转换为人类可读的字符。这涉及到字符的映射和编码，而不同语言和文化有不同的字符需求。字符流的一个主要优势是它们内置了字符编码和解码，使得在处理多语言文本时更加方便。例如，UTF-8、UTF-16等字符编码可以处理不同语言的字符。
+- **换行符处理：** 不同操作系统使用不同的换行符表示行尾（例如，Windows使用"\r\n"，Unix使用"\n"）。字符流会自动处理这些换行符的转换，使得在不同操作系统间移植文本文件更容易。
+- **高级处理：** 字节流在处理文本时需要手动处理字符编码、换行符等细节。而字符流将这些细节封装起来，提供更高级别的抽象，减少了开发人员处理细节的负担。
+- **文本处理的便利性：** 由于大部分应用程序处理的是文本数据，字符流提供了更适合这种场景的API。字符流允许按字符而不是字节读取数据，这对于处理文本数据更自然。
+
+当我们尝试使用字节流读取一个带中文的文本文件，可能会因为未采取合适的字符编码，出现乱码。
+
+chinese-info.txt
+
+```
+你好，Java IO.
+```
+
+测试代码
+
+```java
+package com.congee02.character;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+
+public class GarbledRead {
+
+    public static void main(String[] args) {
+        StringBuilder sb = new StringBuilder();
+        try (FileInputStream in = new FileInputStream("chinese-info.txt")) {
+            int readByte;
+            while ((readByte = in.read()) != -1) {
+                sb.append((char) readByte);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println(sb);
+    }
+
+}
+
+```
+
+运行结果：
+
+```java
+ä½ å¥½ï¼Java IO.
+```
+
+#### Reader
+
+Reader 是 Java 标准库中用于读取字符数据的抽象类。它是字符流的基类，提供了一组用于读取字符数据的方法（字符输入流）。与 InputStream 大体相同，区别在于 InputStream 操纵的最小单元是字节，Reader 操纵的最小单元是字符。常见 API 如下：
+
+| 方法签名                                                     | 描述                                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `int read() throws IOException`                              | 读取并返回一个字符的Unicode值，到达流末尾返回-1。            |
+| `int read(char[] cbuf) throws IOException`                   | 将字符读入到字符数组`cbuf`中，返回读取的字符数，到达流末尾返回-1。 |
+| `int read(char[] cbuf, int off, int len) throws IOException` | 将字符读入到字符数组`cbuf`的指定位置，返回读取的字符数。     |
+| `long skip(long n) throws IOException`                       | 跳过指定数量的字符。                                         |
+| `boolean ready() throws IOException`                         | 检查是否可以从流中读取数据而不阻塞。                         |
+| `void close() throws IOException`                            | 关闭流，释放相关资源。                                       |
+
+我们尝试使用 FileReader 再次读取上述带中文的文件。
+
+```java
+package com.congee02.character.in;
+
+import java.io.FileReader;
+import java.io.IOException;
+
+public class FileReaderDemo {
+
+    private final static String READ_FILE = "chinese-info.txt";
+
+    public static void main(String[] args) {
+        try (final FileReader reader = new FileReader(READ_FILE)) {
+            int readCharacter;
+            while ((readCharacter = reader.read()) != -1) {
+                System.out.print((char) readCharacter);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+}
+
+```
+
+运行结果：
+
+```
+你好，Java IO.
+```
+
+可以看到，当使用 FileReader 时，自动选取了合适的编码方式，中文被正常打印了。
+
+让我们猜想一下这背后的基本步骤：
+
+1. 打开文件
+2. 读取文件字节
+3. 获取文件编码格式
+4. 按照编码格式将读取到的文件字节转换为字符
+5. 返回读取到的字符
+
+查看源码，发现 FileReader 继承自 InputStreamReader，此外没有自己的方法，只是创建一个 FileInputStream 对象作为 InputStreamReader 的被装饰对象。InputStreamReader 使用默认编码编码来创建 StreamDecoder 解码器对象来解析字节为字符，也可以自己决定字符编码。
+
+```java
+public InputStreamReader(InputStream in) {
+    super(in);
+    // 使用默认的字符编码格式解析
+    sd = StreamDecoder.forInputStreamReader(in, this,
+            Charset.defaultCharset()); // ## check lock object
+}
+
+
+// 使用给定的字符编码格式解析
+public InputStreamReader(InputStream in, String charsetName)
+    throws UnsupportedEncodingException
+{
+    super(in);
+    if (charsetName == null)
+        throw new NullPointerException("charsetName");
+    sd = StreamDecoder.forInputStreamReader(in, this, charsetName);
+}
+
+// 使用给定的字符编码格式解析
+public InputStreamReader(InputStream in, Charset cs) {
+    super(in);
+    if (cs == null)
+        throw new NullPointerException("charset");
+    sd = StreamDecoder.forInputStreamReader(in, this, cs);
+}
+```
+
+当调用 FileReader 的 read() 方法时，实际上是调用 InputStreamReader 的 StreamDecoder 对象 sd 的 read 方法来将读取到的字节转换为字符。read(byte[], int, int) 也是同理。所以字符流能够正确读取字符受益于 StreamDecoder 对象执行的转换操作。
+
+```java
+public int read() throws IOException {
+    return sd.read();
+}
+public int read(char cbuf[], int offset, int length) throws IOException {
+    return sd.read(cbuf, offset, length);
+}
+```
+
+#### Writer
+
+与 Reader 相对的，Writer 用于将内存中的字符信息写入到目的地，关键方法如下：
+
+| 方法签名                                                     | 描述                                                     |
+| ------------------------------------------------------------ | -------------------------------------------------------- |
+| `void write(int c) throws IOException`                       | 将指定的字符写入流中。                                   |
+| `void write(char[] cbuf) throws IOException`                 | 将字符数组中的字符写入流中。                             |
+| `void write(char[] cbuf, int off, int len) throws IOException` | 将字符数组中从偏移量 `off` 开始的 `len` 个字符写入流中。 |
+| `void write(String str) throws IOException`                  | 将字符串写入流中。                                       |
+| `void write(String str, int off, int len) throws IOException` | 将字符串中从偏移量 `off` 开始的 `len` 个字符写入流中。   |
+| `void flush() throws IOException`                            | 刷新流，将未写入的数据强制写入目标。                     |
+| `void close() throws IOException`                            | 关闭流，释放相关资源。                                   |
+
+示例如下，写入当前时间
+
+```java
+package com.congee02.character.out;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Date;
+
+public class FileWriterDemo {
+
+    private final static String WRITE_FILE_PATH = "file-writer-output.txt";
+
+    public static void main(String[] args) {
+        try (FileWriter writer = new FileWriter(WRITE_FILE_PATH)) {
+            String writeContent = "APPEND-TIME: " + new Date();
+            writer.write(writeContent.toCharArray());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+}
+
+```
+
+我们看一下 FileWriter 是如何执行 write 方法的，所有重写的 write 都基于 write(char[] cs, int off, int, len)，所以我们看它。
+
+我们发现 FileWriter 没有直接写 write(char[] cs, int off, int, len)，但是继承了 OutputStreamWriter ，那么该方法来自 OutputStreamWriter。
+
+OutputStreamWriter#write(char cbuf[], int off, int len)
+
+```java
+private final StreamEncoder se;
+public void write(char cbuf[], int off, int len) throws IOException {
+    se.write(cbuf, off, len);
+}
+```
+
+和 FileReader 相似，实际上使用的是 StreamEncoder 编码器的 write 方法将读取到的字符编码为特定格式再进行写入。
+
+#### BufferedReader 和 BufferedWriter
+
+BufferedReader （字符缓冲输入流）和 BufferedWriter（字符缓冲输出流）类似于 BufferedInputStream（字节缓冲输入流）和BufferedOutputStream（字节缓冲输入流），内部都维护了一个字节数组作为缓冲区。不过，前者主要是用来操作字符信息。
 
 ### 打印流
 
-### 随机访问流
+打印流主要有两个类 PrintStream 和 PrintWriter。
+
+1. **字符编码：**
+   - `PrintStream` 使用底层平台默认的字符编码来处理字符数据，这可能导致在不同平台上的输出结果不一致。
+   - `PrintWriter` 允许指定字符编码，使得输出更加可控。这在处理多语言文本、网络通信等场景中特别有用。
+2. **继承关系：**
+   - `PrintStream` 是`OutputStream`的子类，因此它主要是基于字节的输出流，使用字节流来输出字符数据。它经常用于控制台输出。
+   - `PrintWriter` 是`Writer`的子类，它是基于字符的输出流，专门用于处理字符数据的输出。它通常用于文本文件输出和字符数据的网络传输。
+3. **自动刷新：**
+   - `PrintStream` 默认情况下在每次调用 `println()` 方法时会自动刷新，这意味着数据会立即写入目标。
+   - `PrintWriter` 默认情况下是非自动刷新的，您需要手动调用 `flush()` 方法或者关闭流来确保数据写入目标。
+4. **异常处理：**
+   - `PrintStream` 在抛出异常时可能会中断输出流，这可能会导致之后的输出被忽略。
+   - `PrintWriter` 在抛出异常时不会中断流，允许继续写入数据，但您需要检查流是否发生异常。
+5. **可靠性：**
+   - `PrintStream` 在处理控制台输出等简单场景时通常足够可靠。
+   - `PrintWriter` 在处理重要的文件输出和网络通信等场景时更加可靠，因为它提供了更多的控制和错误处理机制。
+
+这里不作为重点解释，给出两个例子来演示 PrintStream 和 PrintWriter
+
+```java
+package com.congee02.print.bytes;
+
+import java.io.*;
+
+public class PrintStreamDemo {
+
+    private final static String STREAM_WRITE_FILE_PATH = "PRINT-STREAM-OUTPUT.txt";
+    private final static String WRITER_WRITE_FILE_PATH = "PRINT-WRITER-OUTPUT.txt";
+
+    private final static Runnable printStreamWrite = () -> {
+        try (PrintStream out = new PrintStream(new BufferedOutputStream(new FileOutputStream(STREAM_WRITE_FILE_PATH)))) {
+            out.printf("%d + %d = %d", 3, 4, 3 + 4);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+    };
+
+    private final static Runnable printWriterWrite = () -> {
+        try (PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(WRITER_WRITE_FILE_PATH)))) {
+            writer.printf("%d * %d = %d", -1, -9, -1 * (-9));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    };
+
+    public static void main(String[] args) throws FileNotFoundException {
+        printStreamWrite.run();
+        printWriterWrite.run();
+    }
+
+}
+
+```
+
+需要额外说明的是，我们平时使用的 System.out 中的 out 是一个 PrintStream 对象，可以在 System 类看到，该 PrintStream 默认指向标准输入即命令行，也可以通过 System.setOut(PrintStream) 方法来设置其指向的输出（比如文件甚至是网络IO）。
+
+### :moon:随机访问流
+
+随机访问流（Random Access Streams）是一种允许在文件中进行随机读写操作的流，它可以在文件中以任意顺序读取或写入数据，而不需要按顺序处理整个文件。在 Java 中，`RandomAccessFile` 是用于创建随机访问流的类，它提供了一系列方法来在文件中定位并进行读写操作。
+
+以下是一些 `RandomAccessFile` 类的常用方法：
+
+| 方法签名                                                    | 描述                                                         |
+| ----------------------------------------------------------- | ------------------------------------------------------------ |
+| `long getFilePointer() throws IOException`                  | 获取当前文件指针的位置。                                     |
+| `void seek(long pos) throws IOException`                    | 设置文件指针的位置。                                         |
+| `int read()` throws IOException                             | 从文件读取一个字节，并返回其整数值。                         |
+| `int read(byte[] b)` throws IOException                     | 从文件读取一组字节，存储在字节数组 `b` 中。                  |
+| `int read(byte[] b, int off, int len) throws IOException`   | 从文件读取指定长度的字节，存储在字节数组 `b` 中的指定位置。  |
+| `void write(int b)` throws IOException                      | 将指定字节写入文件。                                         |
+| `void write(byte[] b)` throws IOException                   | 将字节数组中的所有字节写入文件。                             |
+| `void write(byte[] b, int off, int len) throws IOException` | 将字节数组中的指定范围字节写入文件。                         |
+| `void setLength(long newLength) throws IOException`         | 设置文件的长度。如果指定的长度小于当前长度，则截断文件；如果大于当前长度，则在文件末尾添加零字节。 |
+| `void close()` throws IOException                           | 关闭流。                                                     |
+
+在创建 RandomAccessFile 时，需要指定操作的文件和读写模式。
+
+```java
+/**
+ * @param      file   文件对象
+ * @param      mode   读写模式
+ */
+public RandomAccessFile(File file, String mode)
+    throws FileNotFoundException
+{
+    this(file, mode, false);
+}
+
+// openAndDelete 是否在打开完毕后删除
+private RandomAccessFile(File file, String mode, boolean openAndDelete) {
+    // ... ... ... ... ...
+}
+```
+
+RandomAccessFile 维护一个文件指针，表示下一个将要被写入或者读取的字节所处的位置。我们可以通过 seek(long pos) 来设置文件指针的偏移量（距离文件开头 pos 个字节处）。如需要获取文件指针当前位置，使用 getFilePointer() 方法。
+
+```java
+package com.congee02.random;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.charset.StandardCharsets;
+
+public class RandomAccessFileDemo {
+
+    private static final String RANDOM_ACCESS_MANIPULATION_FILE_PATH = "RANDOM-ACCESS-MANIPULATION.txt";
+
+    private static void printCurrentRandomAccessFileInfo(RandomAccessFile file) throws IOException {
+        System.out.println("Offset before Reading: " + file.getFilePointer() +
+                            "; Character of Current Location: " + (char) file.read() +
+                            "; Offset after Reading: " + file.getFilePointer());
+    }
+
+    public static void main(String[] args) {
+        try (final RandomAccessFile file = new RandomAccessFile(new File(RANDOM_ACCESS_MANIPULATION_FILE_PATH), "rw")) {
+
+            // 文件指针为 0，在此处写入数据
+            file.write("ABCDEFGHIJKLMNOPQRSTUVWXYZ".getBytes(StandardCharsets.UTF_8));
+
+            // 移动文件指针到 3 byte 的位置
+            file.seek(3);
+            printCurrentRandomAccessFileInfo(file);
+
+            // 在 4 byte 的位置写入数据
+            file.write("1234".getBytes(StandardCharsets.UTF_8));
+            printCurrentRandomAccessFileInfo(file);
+
+            // 移动文件指针到 0 byte 的位置
+            file.seek(0);
+            printCurrentRandomAccessFileInfo(file);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+}
+
+```
+
+RandomAccessFile 实现大文件续点上传 ...
+
+### FilterOutputStream & FilterInputStream
+
+### 字符流和字节流互相转换
+
+
 

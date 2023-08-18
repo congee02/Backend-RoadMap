@@ -359,131 +359,130 @@ public class UncheckedExceptionExample {
 
 - 使用日志打印异常之后就不要再抛出异常了（两者不要同时存在一段代码逻辑中）。
 
-## I/O
 
-### 字符流和字节流
 
-I/O 流在 Java 中被分为字节流（Byte Stream）和字符流（Character Stream），是为了适应不同类型的数据和不同的文本编码需求。
+## 增强 for 循环
 
-- 字节流主要处理原始的二进制数据，不关心数据的具体内容。它以字节为单位进行读取和写入操作，适用于处理图像、音频、视频等不需要解释内容的数据。
-- 字符流主要处理文本数据，它会考虑文本的字符编码，能够正确地读取和写入字符数据。字符流会自动进行字符编码和解码，使得读取和写入文本数据更加方便和符合人类阅读习惯。
+增强型 `for` 循环适用于只读遍历，而传统的 `for` 循环更适合于需要修改集合或数组内容的情况。
 
-### :m:Java I/O 框架 设计模式总结
+### 增强 for 循环遍历数组
 
-#### 装饰器模式
+使用增强型 `for` 循环（也称为 "foreach" 循环）来遍历数组时，不能直接修改数组的内容。增强型 `for` 循环提供了简洁的语法来遍历数组或集合中的元素，但是在循环体内无法直接修改元素的值。
 
-装饰器模式可以在不改变原有对象的前提下扩展其功能。
-
-装饰者模式使用组合来代替继承来扩展原始类的功能，在一些继承关系比较复杂的场景（比如 IO）更加适用。
-
-比如说，可以使用 PrintStream 来增强 OutputStream 的实现类，使其支持使用 println、printf 来输出字符内容，体现了装饰者模式的思想。
-
-```java
-/**
- * Creates a new print stream.  This stream will not flush automatically.
- *
- * @param  out        The output stream to which values and objects will be
- *                    printed
- *
- * @see java.io.PrintWriter#PrintWriter(java.io.OutputStream)
- */
-public PrintStream(OutputStream out) {
-    this(out, false);
-}
-```
+用增强 for 循环遍历数组
 
 ```java
 package com.congee02;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
-import java.time.LocalTime;
+import java.util.Arrays;
 
-public class PrintStreamEnhanceOutputStream {
+public class ArrayEnhancedForLoop {
 
-    public static void main(String[] args) throws FileNotFoundException {
-        FileOutputStream fileOutputStream = new FileOutputStream("test.txt");
-        PrintStream printStream = new PrintStream(fileOutputStream);
-        printStream.println(LocalTime.now());
+    public static void main(String[] args) {
+        Integer[] is = {1, 2, 3};
+        for (Integer i : is) {
+            i += 1;
+        }
+        System.out.println(Arrays.toString(is));
     }
 
 }
 
 ```
 
-#### 适配器模式
+运行结果：
 
-适配器模式主要用于接口互不兼容的类的协调工作，生活中 type-c 转 3.5mm 耳机孔转接器就有适配器模式思想的体现。
+```perl
+[1, 2, 3]
+```
 
-适配器模式中被适配的对象或者接口被称为 Source（来源），作用于适配者对象或者类被称为 Adapter（适配器），而客户端所期望的接口被称为 Destination（目标）。
-
-IO 流中的字符流和字节流的接口不同，它们之间可以协调工作就是基于适配器的思想。通过适配器，我们可以将字节流对象适配为一个字符流对象，允许通过字节流对象读取或写入数据。
+看一下反汇编代码：
 
 ```java
-package com.congee02.adapter;
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.Scanner;
+package com.congee02;
 
-public class CharacterStreamAdaptToByteStream {
+import java.util.Arrays;
 
-    public static void main(String[] args) throws FileNotFoundException {
-        FileInputStream source = new FileInputStream("test.txt");
-        InputStreamReader adapter = new InputStreamReader(source, StandardCharsets.UTF_8);
-        Scanner destination = new Scanner(adapter);
+public class ArrayEnhancedForLoop {
+    public ArrayEnhancedForLoop() {
+    }
 
-        while (destination.hasNext()) {
-            System.out.println(destination.nextLine());
+    public static void main(String[] args) {
+        Integer[] is = new Integer[]{1, 2, 3};
+        Integer[] var2 = is;
+        int var3 = is.length;
+
+        for(int var4 = 0; var4 < var3; ++var4) {
+            Integer i = var2[var4];
+            i = i + 1;
+        }
+
+        System.out.println(Arrays.toString(is));
+    }
+}
+
+```
+
+可见，在遍历数组时，会创建一个当前遍历元素的副本并操作，所以在 增强for循环遍历数组时对元素的操作实际上不会影响其数组内容。
+
+### 增强 for 循环遍历 Collection 集合
+
+当增强 for 循环遍历 Collction 集合时，实际上是调用了 Collection#iterator() 方法获取当前集合的迭代器，然后在迭代时创建一个当前遍历元素的副本进行操作，所以不会影响 Collection 集合内容。
+
+增强 for 循环遍历 Collection 集合
+
+```java
+package com.congee02;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+
+public class CollectionEnhancedForLoop {
+
+    public static void main(String[] args) {
+        ArrayList<Integer> list = new ArrayList<>(Arrays.asList(1, 2, 3, 4));
+        for (int i : list) {
+            System.out.println(i);
+        }
+    }
+
+}
+
+```
+
+
+
+```java
+//
+// Source code recreated from a .class file by IntelliJ IDEA
+// (powered by FernFlower decompiler)
+//
+
+package com.congee02;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+
+public class CollectionEnhancedForLoop {
+    public CollectionEnhancedForLoop() {
+    }
+
+    public static void main(String[] args) {
+        ArrayList<Integer> list = new ArrayList(Arrays.asList(1, 2, 3, 4));
+        Iterator var2 = list.iterator();
+
+        while(var2.hasNext()) {
+            int i = (Integer)var2.next();
+            System.out.println(i);
         }
 
     }
-
 }
 
 ```
-
-上述代码中，InputStream (Source) -> InputStreamReader (Adapter) -> Reader (Destination)
-
-InputStreamReader 部分源码
-
-```java
-// Reader 是我们想要的接口
-public class InputStreamReader extends Reader {
-
-    private final StreamDecoder sd;
-
-    // in 是我们已有的字节流
-    public InputStreamReader(InputStream in) {
-        super(in);
-        sd = StreamDecoder.forInputStreamReader(in, this,
-                Charset.defaultCharset()); // ## check lock object
-    }
-
-    // in 是我们已有的字节流
-    public InputStreamReader(InputStream in, String charsetName)
-        throws UnsupportedEncodingException
-    {
-        super(in);
-        if (charsetName == null)
-            throw new NullPointerException("charsetName");
-        sd = StreamDecoder.forInputStreamReader(in, this, charsetName);
-    }
-}
-```
-
-##### 装饰者模式和适配器模式的区别
-
-装饰者模式更侧重于动态地增加原始类的功能，装饰器类需要根原始类继承相同的类或者实现相同的接口。
-
-适配器模式更侧重于让不能兼容的接口可以一起协作。
-
-#### 工厂模式
-
-工厂模式用于创建对象，NIO 中大量用到了工厂模式，比如 Files 的
-
-#### 观察者模式
