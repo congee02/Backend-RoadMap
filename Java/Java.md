@@ -5585,7 +5585,7 @@ public class ThreadSetDaemon {
 ##### 与普通线程相比，守护线程有如下特点
 
 1. 终止行为
-   - 普通线程：普通线程的终止不会影响程序的继续执行，即使所有的普通进程已经停止，程序仍然会继续运行，知道所有线程执行完成。
+   - 普通线程：普通线程的终止不会影响程序的继续执行，即使所有的普通进程已经停止，程序仍然会继续运行，直到所有线程执行完成。
    - 守护线程：守护线程的终止会随着程序的终止而终止，即使守护线程的任务尚未完成。当所有的非守护线程都已经终止时，守护线程会被强制终止。
 2. 执行任务
    - 普通线程：普通线程会阻止程序的继续执行，直到它们完成任务
@@ -6402,7 +6402,7 @@ public class ThreadGroupCreate {
 
     public static void main(String[] args) {
 
-        // 若未指定，默认的父线程组为 main
+        // 若未指定，默认的父线程组为当前线程
         ThreadGroup subThreadGroup1 = new ThreadGroup("subThreadGroup1");
         // 指定默认父线程组为 subThreadGroup1
         ThreadGroup subThreadGroup2 = new ThreadGroup(subThreadGroup1, "subThreadGroup2");
@@ -7630,6 +7630,26 @@ public class ErrorSynchronizedCounterExample {
 | 轻量级锁 | 竞争的线程不会阻塞，提高了程序的响应速度。                   | 如果始终得不到锁竞争的线程使用自旋会消耗CPU。    | 追求响应时间。同步块执行速度非常快。 |
 | 重量级锁 | 线程竞争不使用自旋，不会消耗CPU。                            | 线程阻塞，响应时间缓慢。                         | 追求吞吐量。同步块执行时间较长。     |
 
+##### 按照获取锁顺序的不同策略
+
+公平锁和非公平锁是关于锁获取顺序的两者不同策略，它们影响着线程在竞争锁时的优先级和顺序。
+
+1. 公平锁
+
+   多个线程按照申请锁的顺序去获得锁，线程会直接进入队列去排队，永远是队头线程得到锁。
+
+   优点：所有线程都能够得到资源，不会产生饥饿现象
+
+   缺点：吞吐量会下降很多，队列里除了第一个线程，其他的线程都会阻塞，CPU 唤醒阻塞的线程的开销较大
+
+2. 非公平锁
+
+   多个线程去获取锁的时候，会直接去尝试获取。假若获取不到，再进入等待队列，如果能获取到，就直接获取锁。
+
+   优点：可以减少 CPU 唤醒线程的开销，提高整体吞吐率，也不必唤醒所有线程，降低 CPU 唤醒线程的代价。
+
+   缺点：可能导致队列中的线程长时间获取不到锁甚至一直获取不到锁而产生饥饿现象
+
 ###### 锁的升级（也称为锁的膨胀）
 
 ![20200603161323889](assets/20200603161323889.png)
@@ -7676,15 +7696,6 @@ def CAS(V, E, N):
 
 CAS 是一种原子操作，属于系统原语，是一条 CPU 的原子指令，在 CPU 层面保障 CAS 的原子性。那么，当多个线程同时使用 CAS 操作一个变量时，只有一个会胜出并成功更新。其余线程均会失败，但不会被挂起，只是被告知失败，并且允许再次尝试，也允许失败的线程放弃操作。
 
-### ReentrantLock
-
-ReentrantLock 是 Java 编程语言提供的一种可重入锁的实现，用于多线程编程中的同步控制。ReetrantLock 比传统的 synchronized 关键字提供了更多的功能和灵活性，允许开发者更精细地控制线程的同步行为。
-
-ReetrantLock 的主要特点包括：
-
-1. 可重入性
-2. 公平性选择
-3. 等待限时
 
 #### CAS 实现原子操作的三大问题
 
@@ -7730,9 +7741,904 @@ pause 指令能让自旋失败时 CPU 睡眠一小段时间再继续自旋，从
 
 
 
-### :moon:BlockingQueue，阻塞队列
+### ReentrantLock
 
-### :first_quarter_moon:AbstractQueuedSynchronizer, AQS
+参考：https://zhuanlan.zhihu.com/p/115543000
+
+ReentrantLock 是 Java 编程语言提供的一种可重入锁的实现，用于多线程编程中的同步控制。ReetrantLock 比传统的 synchronized 关键字提供了更多的功能和灵活性，允许开发者更精细地控制线程的同步行为。
+
+#### 基本特性
+
+ReetrantLock 的主要特点包括：
+
+1. 可重入性
+
+   已经持有锁的线程可以多次获取锁而不会阻塞自己。这些方法互相调用时持有锁非常有用。其持有计数由 state 字段维护
+
+   ```java
+   package com.congee02.multithread.lock;
+   
+   import java.util.concurrent.locks.Lock;
+   import java.util.concurrent.locks.ReentrantLock;
+   
+   public class ReentrantLockAvoidDeadLock {
+   
+       private static Lock lockA = new ReentrantLock() {
+           @Override
+           public String toString() {
+               return "lockA";
+           }
+       };
+       private static Lock lockB = new ReentrantLock() {
+           @Override
+           public String toString() {
+               return "lockB";
+           }
+       };
+   
+       private static void acquireLockAndWork(Lock firstLock, Lock secondLock) {
+           firstLock.lock();
+           System.out.println(Thread.currentThread().getName() + " acquired " + firstLock);
+   
+           try {
+               Thread.sleep(1000);
+   
+               secondLock.lock();
+               System.out.println(Thread.currentThread().getName() + " acquired " + secondLock);
+           } catch (InterruptedException e) {
+               e.printStackTrace();
+           } finally {
+               firstLock.unlock();
+               secondLock.unlock();
+           }
+       }
+   
+       public static void main(String[] args) {
+           final Thread x = new Thread(() -> acquireLockAndWork(lockA, lockB), "X");
+           final Thread y = new Thread(() -> acquireLockAndWork(lockA, lockB), "Y");
+   
+           x.start();
+           y.start();
+       }
+   
+   }
+   
+   ```
+
+   
+
+2. 公平性选择
+
+   在实例化 ReentrantLock 时可以选择其重入锁是否是公平的。默认为非公平锁。
+
+   ```java
+   public ReentrantLock(boolean fair) {
+       sync = fair ? new FairSync() : new NonfairSync();
+   }
+   
+   public ReentrantLock() {
+       sync = new NonfairSync();
+   }
+   
+   ```
+
+3. 等待限时
+
+   ReentantLock 提供了一种等待限时的方式来获取锁，以避免线程永久地被阻塞。等待限时通过 tryLock(long time, TimeUnit unit) 方法来实现，该方法会在一段时间内尝试获取锁，如果成功返回 true，否则返回 false
+   
+   ```java
+   package com.congee02.multithread.lock;
+   
+   import java.util.concurrent.TimeUnit;
+   import java.util.concurrent.locks.Lock;
+   import java.util.concurrent.locks.ReentrantLock;
+   
+   public class ReentrantLockTimeout {
+   
+       // 公平锁
+       private static final Lock lock = new ReentrantLock(true);
+   
+       private final static Runnable r1 = () -> {
+           boolean isLocked = lock.tryLock();
+           if (isLocked) {
+               try {
+                   System.out.println(Thread.currentThread().getName() + " acquire lock.");
+                   Thread.sleep(4000);
+               } catch (InterruptedException e) {
+                   e.printStackTrace();
+               } finally {
+                   lock.unlock();
+               }
+           }
+           else {
+               System.out.println(Thread.currentThread().getName() + " could not acquire the lock.");
+           }
+           System.out.println(Thread.currentThread().getName() + " done.");
+       };
+   
+       private static final Runnable r2 = () -> {
+           boolean isLocked = false;
+           try {
+               isLocked = lock.tryLock(3, TimeUnit.SECONDS);
+           } catch (InterruptedException e) {
+               e.printStackTrace();
+           }
+           if (isLocked) {
+               try {
+                   System.out.println(Thread.currentThread().getName() + " acquire lock.");
+               } finally {
+                   lock.unlock();
+               }
+           }
+           else {
+               System.out.println(Thread.currentThread().getName() + " could not acquire the lock.");
+           }
+       };
+   
+       public static void main(String[] args) {
+           // 因为是公平锁，t1 总是第一个获取锁的线程
+           Thread t1 = new Thread(r1, "t1");
+           Thread t2 = new Thread(r2, "t2");
+           t1.start();
+           t2.start();
+       }
+   
+   }
+   
+   ```
+   
+
+
+
+#### ReentrantLock 的公平锁和非公平锁
+
+ReetrantLock 的内部实现依赖 ReetrantLock.Sync 这个内部类实现。
+
+ReetantLock 的 tryLock 方法其实是调用 Sync 的 nonfairTryAcquire(int)
+
+```java
+public boolean tryLock() {
+    // 尝试持有锁
+    // 若已经持有锁，则 sync 的 state 加 1
+    return sync.nonfairTryAcquire(1);
+}
+```
+
+这是一个继承于 AbstractQueuedSynchronizer 的抽象类，作为 ReetrantLock 同步控制的基底，下面有 FairSync 和 NonFairSync 对应着 ReentrantLock 的公平锁和非公平锁。
+
+AQS 中，state 大于 0 则表示该锁已经有线程占用，为 0 则表示该锁无线程占用。
+
+当一个锁为非公平锁时，某一个线程尝试获取该锁，首先会获取当前锁的 state，如果该锁 state 为 0，代表该锁无线程占用，那么该线程就会尝试使用 CAS 来修改 state 并获取锁，获取成功则设置锁当前拥有者为当前线程，当前线程持有该锁，返回 true，否则返回 false，表示获取锁失败。如果当前线程已经持有锁，设置 state += acquires 作为持有计数，并返回 true。（在线程释放锁时，持有计数会递减）
+
+ReetrantLock.Sync#nonfaireTryAcquire(int)
+
+```java
+/**
+ * Performs non-fair tryLock.  tryAcquire is implemented in
+ * subclasses, but both need nonfair try for trylock method.
+ */
+@ReservedStackAccess
+final boolean nonfairTryAcquire(int acquires) {
+    final Thread current = Thread.currentThread();
+    int c = getState();
+    // 当前锁无其他线程占用
+    if (c == 0) {
+        // 使用 CAS 修改 state
+        if (compareAndSetState(0, acquires)) {
+            // 设置当前锁的拥有者为当前线程
+            setExclusiveOwnerThread(current);
+            return true;
+        }
+    }
+    // 如果当前线程占有该锁
+    else if (current == getExclusiveOwnerThread()) {
+        // state = state + acquires
+        int nextc = c + acquires;
+        if (nextc < 0) // overflow
+            throw new Error("Maximum lock count exceeded");
+        setState(nextc);
+        return true;
+    }
+    // 当前锁无其他线程占用，尝试 CAS 修改时失败
+    return false;
+}
+```
+
+再来看看锁为公平锁的情况，实际上与非公平锁极为类似，只不过在 state 为 0 时，在进行 CAS 修改 state 前需要先判断当前线程前面有没有在排队的线程。
+
+ReetrantLock.FairSync#tryAcquire(int)
+
+```java
+@ReservedStackAccess
+protected final boolean tryAcquire(int acquires) {
+    final Thread current = Thread.currentThread();
+    int c = getState();
+    if (c == 0) {
+        // 判断当前线程前面有没有在排队的线程
+        if (!hasQueuedPredecessors() &&
+            compareAndSetState(0, acquires)) {
+            setExclusiveOwnerThread(current);
+            return true;
+        }
+    }
+    else if (current == getExclusiveOwnerThread()) {
+        int nextc = c + acquires;
+        if (nextc < 0)
+            throw new Error("Maximum lock count exceeded");
+        setState(nextc);
+        return true;
+    }
+    return false;
+}
+
+
+// 判断当前线程前面有没有在排队的线程
+// 有则返回 true，否则返回 false
+public final boolean hasQueuedPredecessors() {
+    Node h, s;
+    if ((h = head) != null) {
+        if ((s = h.next) == null || s.waitStatus > 0) {
+            s = null; // traverse in case of concurrent cancellation
+            for (Node p = tail; p != h && p != null; p = p.prev) {
+                if (p.waitStatus <= 0)
+                    s = p;
+            }
+        }
+        if (s != null && s.thread != Thread.currentThread())
+            return true;
+    }
+    return false;
+}
+```
+
+下面，以画图的方式重新阐述公平锁和非公平锁的关键区别：
+
+#### 公平锁 VS 非公平锁 图解
+
+##### 非公平锁
+
+1 线程 A 尝试获取锁，首先判断 state，发现 state 为 0，并且 CAS 成功，则修改当前锁的持有者为自己
+
+![v2-e95055fb06912adbd0f13e2d9b3e128a_r](assets/v2-e95055fb06912adbd0f13e2d9b3e128a_r.jpg)
+
+2 这时线程 B 尝试获取锁，发现 state 为 1（线程 A 尚未成功释放当前锁），CAS 失败，进入等待队列队尾（此时等待队列为空）等待唤醒。
+
+![v2-a55d05b65f58984e5632b4ab18c7fcb8_r](assets/v2-a55d05b65f58984e5632b4ab18c7fcb8_r.jpg)
+
+3 线程 A 释放锁，修改 state 状态，抹除自己持有锁的痕迹，准备唤醒位于等待队列队头的线程 B。
+
+![v2-9b55c499d1d012e56bb124d52ad6b469_r](assets/v2-9b55c499d1d012e56bb124d52ad6b469_r.jpg)
+
+4 在线程 A 准备或者正在唤醒 线程 B 时，线程 C 尝试获取锁，发现此时 state 为 0，则立即 CAS 将 state 修改为 1，自己持有锁。此时线程 B 被唤醒，因为线程 C 已占有锁，则线程 B CAS 失败，继续等待。
+
+![v2-c2109ccde8193517f686d1aeda955eca_720w](assets/v2-c2109ccde8193517f686d1aeda955eca_720w.webp)
+
+以上就是一个非公平锁的线程，这样的情况就有可能像B这样的线程长时间无法得到资源，优点就是可能有的线程减少了等待时间，提高了利用率。
+
+##### 公平锁
+
+0 初始时等待队列为空
+
+1 线程 A 尝试获取锁，首先查看当前线程前面有没有等待的线程，发现没有，则 CAS 修改 state 为 1，占有锁
+
+![v2-e95055fb06912adbd0f13e2d9b3e128a_r](assets/v2-e95055fb06912adbd0f13e2d9b3e128a_r-1692672994955-5.jpg)
+
+2 线程 A 占有锁时，线程 B 尝试获取锁，发现 state 不为 0，CAS 失败，在等待队列排队等待当前占用锁的线程（线程 A）唤醒。
+
+![v2-89e7b1f27f62fd035173ed87c4046f7e_720w](assets/v2-89e7b1f27f62fd035173ed87c4046f7e_720w.jpg)
+
+线程 A 释放锁，抹除持有锁的痕迹后，唤醒 B 线程。此时 线程 C 尝试获取锁，首先查看自己面前有没有线程，发现还有一个线程B，则加入到等待队列队尾等待被唤醒。
+
+![v2-7a280921de91d6d5d89f027ec4faa3b3_r](assets/v2-7a280921de91d6d5d89f027ec4faa3b3_r.jpg)
+
+
+
+##### 公平锁真的绝对公平吗？
+
+公平锁追求资源获取的相对公平性，即等待时间更长的线程会优先获得锁。然而，在实际的多线程环境中，操作系统调度、竞争情况、等待时间测量等因素可能影响公平性。公平锁只提供尽可能的公平。
+
+#### Lock 原理
+
+Lock 维护了一个锁（state），和一个等待队列（Abstract Queued Synchronizer），这是 Lock 在底层实现的两个核心元素。 AQS 等待队列解决了线程同步的问题，volatile 定义的锁状态解决了线程之间对于锁状态的可见性，并解决了对临界区代码的互斥访问。
+
+### CountDownLatch
+
+CountDownLatch 用于控制一个或者多个线程等待一组操作完成，可在多线程中实现线程同步和协调。
+
+CoutDownLatch 类的主要思想是，一个或多个线程等待其他线程执行特定数量的操作，直至计数达到零，等待的线程才能继续执行。
+
+CountDownLatch 特别适合一个线程需要等待其他多个线程完成某些任务，然后才能执行。也就是说，CountDownLatch可以解决那些一个或者多个线程在执行之前必须依赖于某些必要的前提业务先执行的场景。
+
+#### 关键方法
+
+以下是 CountDownLatch 的关键方法
+
+| 方法签名                                     | 描述                                                         |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| `CountDownLatch(int count)`                  | 创建一个 `CountDownLatch` 对象，初始计数值为 `count`。       |
+| `void await()`                               | 等待计数器达到零。如果计数器不为零，则当前线程将阻塞，直到计数器减少为零。 |
+| `boolean await(long timeout, TimeUnit unit)` | 等待计数器达到零，但最多等待指定的时间。如果在超时之前计数器变为零，则返回 `true`。 |
+| `void countDown()`                           | 递减计数器的值。通常在一个线程完成了一个任务后调用，表示一个操作已经完成。 |
+| `long getCount()`                            | 获取当前计数器的值。                                         |
+
+#### 报表处理优化
+
+1. 问题
+
+   运营系统有统计报表、业务为统计每日的用户新增数量、订单数量、商品的总销量、总销售额......等多项指标统一展示出来，因为数据量比较大，统计指标涉及到的业务范围也比较多，所以后端处理较慢，需要较长时间返回给前端。
+
+2. 分析
+
+   统计报表页面涉及到的统计指标数据比较多，每个指标需要单独的去查询统计数据库数据，单个指标只要几秒钟，但是页面的指标有10多个，所以整体下来页面渲染需要将近一分钟。
+
+3. 解决方案
+
+   我们可以将多个指标的处理从串行处理优化为并行处理。我们可以新创建多个线程，每个指标的查询任务交给每个线程取执行。
+
+4. 约束
+
+   我们首先需要将每个线程的结果聚合，然后返回给前端，所以这里需要提供一种机制让主线程等待所有子线程都执行完后对每个线程查询的指标结果进行聚合，可以使用 CountDownLatch 实现
+
+这里我们有 4 个指标：用户新增量，订单数量，商品总销售数量，总销售额。
+
+每个指标查询时间大约为 3 秒，如果串行查询，则大约需要 12 秒。
+
+这里开启 4 个线程进行并行查询，最后在主方法中聚合查询结果返回给前端。
+
+```java
+package com.congee02.multithread.countdownlatch;
+
+import com.congee02.multithread.utils.SimpleProfileUtils;
+
+import java.util.Map;
+import java.util.concurrent.*;
+
+public class MultiThreadReportStatistics implements Runnable {
+
+    private final static Map<String, Integer> aggregated = new ConcurrentHashMap<>();
+
+    private final static int INDICATE_NUM = 4;
+    private final static long MONITOR_SECONDS = 3L;
+
+    private final static CountDownLatch latch = new CountDownLatch(INDICATE_NUM);
+
+    // 模拟耗时的查询操作
+    private final static void monitorWork() throws InterruptedException {
+        TimeUnit.SECONDS.sleep(MONITOR_SECONDS);
+    }
+
+    private static final Runnable countNewUser = () -> {
+        try {
+            System.out.println("正在查询新增用户数量");
+            monitorWork();
+            aggregated.put("userNumber", 1);
+            System.out.println("查询新增用户完毕");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            latch.countDown();
+        }
+    };
+
+    private static final Runnable countOrder = () -> {
+        try {
+            System.out.println("正在查询订单数量");
+            monitorWork();
+            aggregated.put("countOrder", 2);
+            System.out.println("查询订单数量完毕");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            latch.countDown();
+        }
+    };
+
+    private static final Runnable countGoods = () -> {
+        try {
+            System.out.println("正在查询商品数量");
+            monitorWork();
+            aggregated.put("countGoods", 3);
+            System.out.println("商品数量销售完毕");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            latch.countDown();
+        }
+    };
+
+    private static final Runnable countSales = () -> {
+        try {
+            System.out.println("正在查询销售总额");
+            monitorWork();
+            aggregated.put("coutSales", 4);
+            System.out.println("查询销售总额完毕");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            latch.countDown();
+        }
+    };
+
+    @Override
+    public void run() {
+
+        ExecutorService service = Executors.newFixedThreadPool(4);
+
+        service.submit(countNewUser);
+        service.submit(countOrder);
+        service.submit(countGoods);
+        service.submit(countSales);
+
+        try {
+            latch.await();
+            System.out.println("统计指标全部完成");
+            System.out.println("统计结果: " + aggregated);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        service.shutdown();
+
+    }
+
+    public static void main(String[] args) {
+        System.out.println("任务耗时：" + SimpleProfileUtils.millisProfile(new MultiThreadReportStatistics()) / 1000.0 + "秒");
+    }
+}
+
+```
+
+运行结果：
+
+```java
+正在查询新增用户数量
+正在查询订单数量
+正在查询商品数量
+正在查询销售总额
+查询订单数量完毕
+查询新增用户完毕
+商品数量销售完毕
+查询销售总额完毕
+统计指标全部完成
+统计结果: {coutSales=4, countOrder=2, userNumber=1, countGoods=3}
+任务耗时：3.021秒
+```
+
+相比一个个任务串行执行，4个任务并发执行只需要 3 秒，效率大大提升。
+
+#### CountDownLatch 工作原理
+
+1. 初始化计数值
+
+   实例化 CountDownLatch 对象时，需要指定一个初始的计数值，表示需要等待的线程数量，这个计数一旦设置就不能再修改。
+
+   ```java
+   public CountDownLatch(int count) {
+       if (count < 0) throw new IllegalArgumentException("count < 0");
+       this.sync = new Sync(count);
+   }
+   ```
+
+2. 等待操作
+
+   在需要等待其他线程的地方，调用 await 方法，这会使调用线程进入等待状态，直到计数值为 0。如果计数值不为 0，则调用线程一直阻塞（除非线程被中断）。
+
+   ```java
+   public void await() throws InterruptedException {
+       sync.acquireSharedInterruptibly(1);
+   }
+   ```
+
+   当我们调用countDownLatch.wait()的时候，会创建一个节点，加入到AQS阻塞队列，并同时把当前线程挂起。
+
+   其中的 sync.acquireSharedInterruptibly 来自于 AbstratctQueuedSynchronizer，这里暂且不表。将在讲解 AQS 时提到。
+
+3. 完成操作
+
+4. 触发等待
+
+
+
+### Semaphore
+
+### Condition 机制
+
+Java 中的 Condtion 机制是一种用于线程间协调和通信的高级机制，通常与锁（如 ReentrantLock）一起使用，允许线程在特定条件下等待和唤醒，以实现更灵活的线程同步和通信
+
+| 方法签名                                                     | 功能描述                                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `void await() throws InterruptedException`                   | 使当前线程进入等待状态，直到被唤醒。线程必须获取锁并释放，允许其他线程进入。 |
+| `void awaitUninterruptibly()`                                | 类似于 `await`，但不响应中断，即使线程被中断也会继续等待。   |
+| `void await(long time, TimeUnit unit) throws InterruptedException` | 在指定的时间内等待，超时后自动唤醒。如果被中断，抛出 `InterruptedException`。 |
+| `void awaitUntil(Date deadline) throws InterruptedException` | 在指定的时间点之前等待，超时后自动唤醒。如果被中断，抛出 `InterruptedException`。 |
+| `void signal()`                                              | 唤醒一个等待在该条件上的线程。被唤醒的线程尝试重新获取锁，然后继续执行。 |
+| `void signalAll()`                                           | 唤醒所有等待在该条件上的线程。所有等待线程竞争获取锁，然后继续执行。 |
+
+比如典型的生产者消费者问题
+
+```java
+package com.congee02.multithread.condition.producerconsumer;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * 场景：实现一个消息队列，有多个线程会往该队列里面写消息，同时也会存在多个线程会从消息里面读消息，队列的容量只有10个。
+ *
+ * 条件：
+ *
+ * 队列不为满条件：队列里面消息没有满的情况下才能往队里面添加消息。
+ *
+ * 队列不为空条件：消费消息的时候队列里必须有消息才进行消费。
+ *
+ * 加锁：因为是多线程所以需要防止消息被多个线程同时消费，同时也要防止写消息的时候一个线程存的消息被其他线程覆盖，所以队列操作的时候必须加锁。
+ */
+public class ConditionProducerConsumerQueue {
+
+    /**
+     * 消息队列最大大小
+     */
+    private final int MESSAGE_QUEUE_MAX_SIZE = 10;
+
+    /**
+     * 锁
+     */
+    private Lock lock = new ReentrantLock(true);
+    /**
+     * 消息容器
+     */
+    private List<String> listQueue = new LinkedList<>();
+    /**
+     * 队列不为空
+     */
+    private Condition notEmpty = lock.newCondition();
+    /**
+     * 队列不为满
+     */
+    private Condition notFull = lock.newCondition();
+
+    public void put(String message) {
+        // 操作队列前加锁
+        lock.lock();
+        try {
+            // 队列满，通知消费者，生产线程阻塞，暂时释放锁
+            while (listQueue.size() >= MESSAGE_QUEUE_MAX_SIZE) {
+                notEmpty.signal();
+                System.out.println("队列已满, " + Thread.currentThread().getName() + " 等待");
+                notFull.await();
+            }
+
+            // 队列中加入一条消息，通知消费者有新消息
+            listQueue.add(message);
+            System.out.println(Thread.currentThread().getName() + " 生产 : " + message);
+            // 通知消费者线程
+            notEmpty.signal();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public void take() {
+        lock.lock();
+        try {
+            // 队列空，通知生产者，消费者线程阻塞，暂时释放锁
+            while (listQueue.size() <= 0) {
+                System.out.println("队列已空, " + Thread.currentThread().getName() + " 等待");
+                notEmpty.await();
+            }
+            // 取队头并删去队头
+            String message = listQueue.get(0);
+            listQueue.remove(0);
+            System.out.println(Thread.currentThread().getName() + " 消费 : " + message);
+            // 通知生产者继续生产
+            notFull.signal();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+}
+
+```
+
+测试代码
+
+```java
+package com.congee02.multithread.condition.producerconsumer;
+
+public class ConditionProducerConsumerQueueTest {
+
+    private static final ConditionProducerConsumerQueue queue = new ConditionProducerConsumerQueue();
+
+    private static final int CONSUMER_NUM = 10;
+    private static final int PRODUCER_NUM = 10;
+
+    private static int staticProductId = 0;
+
+    private static final Runnable producerRunnable = () -> {
+        while (true) {
+            queue.put("Product" + staticProductId ++);
+        }
+    };
+
+    private static final Runnable consumerRunnable = () -> {
+        while (true) {
+            queue.take();
+        }
+    };
+
+    public static void main(String[] args) {
+        for (int i = 0 ; i < PRODUCER_NUM ; i ++ ) {
+            new Thread(producerRunnable, "Producer" + i).start();
+        }
+        for (int i = 0 ; i < CONSUMER_NUM ; i ++ ) {
+            new Thread(consumerRunnable, "Consumer" + i).start();
+        }
+    }
+
+}
+
+```
+
+运行结果：
+
+```java
+.... .... .... 
+Consumer7 消费 : Product41682
+Consumer2 消费 : Product41683
+Producer7 生产 : Product41686
+Consumer4 消费 : Product41684
+Consumer1 消费 : Product41685
+Consumer9 消费 : Product41686
+Producer8 生产 : Product41687
+Producer3 生产 : Product41688
+Consumer8 消费 : Product41687
+Producer6 生产 : Product41689
+Producer4 生产 : Product41690
+Consumer6 消费 : Product41688
+Producer2 生产 : Product41691
+Producer5 生产 : Product41692
+Producer0 生产 : Product41693
+Producer1 生产 : Product41694
+.... .... ....
+```
+
+
+
+### BlockingQueue，阻塞队列
+
+Java 中的 BlockingQueue 支持在队列为空时，从中取元素自动阻塞等待直到队列中有元素；在队列为满时，从中放入元素自动阻塞等待直到队列不满。它是并发编程中常用的线程安全数据结构之一，用于在多线程环境下安全地传递数据，非常典型的应用就是 Producer-Consumer 问题。
+
+BlockingQueue 是一个接口，有多种常用实现类：
+
+- ArrayBlockingQueue：基于数组的有界阻塞队列
+- LinkedBlockingQueue：基于链表的无界阻塞队列
+- PriorityBlockingQueue：支持优先级排序的无界阻塞队列
+- DelayQueue：支持延迟获取元素的无界阻塞队列
+- SynchronousQueue：不存储元素的阻塞队列，用于线程间的直接传输。
+
+#### 基本使用
+
+无界阻塞队列没有固定容量限制，适用于生产者速度远大于消费者；有界阻塞队列有容量限制，适用于平衡生产者和消费者，控制资源使用。
+
+BlockingQueue 的主要 API 有：
+
+| 方法签名                                                     | 功能描述                                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `void put(E element) throws InterruptedException`            | 将指定元素放入队列，如果队列已满则阻塞等待直到有空间可用。   |
+| `E take() throws InterruptedException`                       | 从队列中取出并移除一个元素，如果队列为空则阻塞等待直到有元素可取。 |
+| `boolean offer(E element, long timeout, TimeUnit unit) throws InterruptedException` | 将指定元素放入队列，如果队列已满则等待一段时间，超时后返回 `false`。 |
+| `E poll(long timeout, TimeUnit unit) throws InterruptedException` | 从队列中取出并移除一个元素，如果队列为空则等待一段时间，超时后返回 `null`。 |
+| `int size()`                                                 | 返回队列中的元素数量。                                       |
+| `boolean isEmpty()`                                          | 判断队列是否为空。                                           |
+| `boolean offer(E element)`                                   | 将指定元素放入队列，如果队列已满则返回 `false`。             |
+| `E poll()`                                                   | 从队列中取出并移除一个元素，如果队列为空则返回 `null`。      |
+
+为了更好地理解 BlockingQueue 阻塞的特性，我们只有生产者而没有消费者
+
+```java
+package com.congee02.multithread.blockingqueue;
+
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+
+public class ProducerNoConsumerBlockingQueue {
+
+    private static final int BUFFER_SIZE = 3;
+
+    private static final BlockingQueue<String> BUFFER = new ArrayBlockingQueue<>(BUFFER_SIZE);
+
+    private static final String BUFFER_ELEMENT_PREFIX = "buffer-";
+
+    private static final Runnable producerRunnable = () -> {
+        try {
+            for (int i = 0 ; i < 10 ; i ++ ) {
+                String currentProduct = BUFFER_ELEMENT_PREFIX + i;
+                Thread.sleep(1);
+                // 尝试添加产品到缓冲区
+                boolean notFull = BUFFER.offer(currentProduct);
+                // 若失败，则阻塞等待缓冲区不满，然后添加产品。
+                if (! notFull) {
+                    System.out.println("队列已满，阻塞等待队列有空位");
+                    BUFFER.put(currentProduct);
+                }
+                System.out.println("产品 " + currentProduct + " 已经放入缓冲区中");
+            }
+        } catch (InterruptedException e) {
+            System.err.println(e.getMessage());
+        }
+    };
+
+    public static void main(String[] args) {
+        Thread producer
+                = new Thread(producerRunnable, "ProducerNoConsumerBlockingQueue-Producer");
+        producer.start();
+    }
+
+}
+
+```
+
+运行结果：
+
+```java
+产品 buffer-0 已经放入缓冲区中
+产品 buffer-1 已经放入缓冲区中
+产品 buffer-2 已经放入缓冲区中
+队列已满，阻塞等待队列有空位
+
+```
+
+可见，在队列已满时，调用其 put 方法会使其阻塞，这就是 BlockingQueue 提供的阻塞特性。
+
+下面再来看典型的生产者消费者情形。
+
+```java
+package com.congee02.multithread.blockingqueue;
+
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+
+public class ProducerConsumerBlockingQueue {
+
+    // 缓冲区大小
+    private static final int BUFFER_SIZE = 3;
+    // 产品数量
+    private static final int PRODUCT_NUM = 10;
+
+    // 缓冲区
+    private static final BlockingQueue<String> BUFFER = new ArrayBlockingQueue<>(BUFFER_SIZE);
+
+    private static final String BUFFER_PRODUCT_PREFIX = "product-";
+
+    private static final Runnable producerRunnable = () -> {
+        try {
+            for (int i = 0 ; i < PRODUCT_NUM ; i ++ ) {
+                Thread.sleep(1);
+                String currentProduct = BUFFER_PRODUCT_PREFIX + i;
+                // 尝试添加产品到缓冲区
+                boolean notFull = BUFFER.offer(currentProduct);
+                // 若失败，则阻塞等待缓冲区不满，即消费者消费后，然后添加产品。
+                if (! notFull) {
+                    System.out.println("队列已满，阻塞等待队列有空位");
+                    BUFFER.put(currentProduct);
+                }
+                System.out.println("产品 " + currentProduct + " 已经放入缓冲区中");
+            }
+        } catch (InterruptedException e) {
+            System.err.println(e.getMessage());
+        }
+        System.out.println("生产者完成");
+    };
+
+    private static final Runnable consumerRunnable = () -> {
+        try {
+            for (int i = 0 ; i < PRODUCT_NUM ; i ++ ) {
+                Thread.sleep(1);
+                // 尝试取出缓冲区队头的元素
+                String product = BUFFER.poll();
+
+                boolean notEmpty = product != null;
+                // 若失败，则阻塞等待缓冲区为空，等待缓冲区不空，即生产者消费后，然后消费产品
+                if (! notEmpty) {
+                    product = BUFFER.take();
+                    System.out.println("队列已空，阻塞等待队列有产品");
+                }
+                System.out.println("消费者消费 " + product + "; 是否有");
+            }
+        } catch (InterruptedException e) {
+            System.err.println(e.getMessage());
+        }
+        System.out.println("消费者完成");
+    };
+
+    public static void main(String[] args) {
+        Thread producer = new Thread(producerRunnable, "producer");
+        Thread consumer = new Thread(consumerRunnable, "consumer");
+        producer.start();
+        consumer.start();
+    }
+
+}
+
+```
+
+
+
+#### ArrayBlockingQueue 源码分析
+
+参考：https://juejin.cn/post/7235714313720397884
+
+构造器
+
+```java
+public ArrayBlockingQueue(int capacity, boolean fair) {
+    if (capacity <= 0)
+        throw new IllegalArgumentException();
+    this.items = new Object[capacity];
+    lock = new ReentrantLock(fair);
+    notEmpty = lock.newCondition();
+    notFull =  lock.newCondition();
+}
+```
+
+发现其中使用到了公平重入锁和两个 Condition
+
+put 方法
+
+```java
+public void put(E e) throws InterruptedException {
+    Objects.requireNonNull(e);
+    final ReentrantLock lock = this.lock;
+    lock.lockInterruptibly();
+    try {
+        while (count == items.length)
+            notFull.await();
+        enqueue(e);
+    } finally {
+        lock.unlock();
+    }
+}
+```
+
+使用 ReentrantLock 加锁，再尝试往阻塞对类中加入元素，如果当前队列满则调用 notFull.await() 进行等待，然后将当前线程加入到 notFull 的 Condition 等待队列中，等到队列未满被唤醒然后调用 enqueue(e) 添加元素，最后释放锁，下面来看看 enque(E x) 方法
+
+enqueue 方法
+
+```java
+/**
+ * Inserts element at current put position, advances, and signals.
+ * Call only when holding lock.
+ */
+private void enqueue(E e) {
+    // assert lock.isHeldByCurrentThread();
+    // assert lock.getHoldCount() == 1;
+    // assert items[putIndex] == null;
+    final Object[] items = this.items;
+    items[putIndex] = e;
+    if (++putIndex == items.length) putIndex = 0;
+    count++;
+    notEmpty.signal();
+}
+```
+
+添加元素之后调用 notEmpty.signal() 唤醒 notEmpty 队列中队头的消费者。
+
+#### ArrayBlockingQueue 原理图
+
+![d1520c7e5f034236a395461426c1539d~tplv-k3u1fbpfcp-zoom-in-crop-mark 1512 0 0 0](assets/d1520c7e5f034236a395461426c1539dtplv-k3u1fbpfcp-zoom-in-crop-mark 1512 0 0 0.webp)
+
+
+
+### AbstractQueuedSynchronizer, AQS
 
 AQS 是 AbstractQueuedSynchronizer 的简称，翻译为 抽象队列同步器，从字面意思立即：
 
@@ -7742,7 +8648,9 @@ AQS 是 AbstractQueuedSynchronizer 的简称，翻译为 抽象队列同步器�
 
 
 
-## Java IO
+
+
+## :floppy_disk:Java IO
 
 ### IO 流简介
 
@@ -8599,7 +9507,7 @@ public class PrintStreamDemo {
 
 需要额外说明的是，我们平时使用的 System.out 中的 out 是一个 PrintStream 对象，可以在 System 类看到，该 PrintStream 默认指向标准输入即命令行，也可以通过 System.setOut(PrintStream) 方法来设置其指向的输出（比如文件甚至是网络IO）。
 
-### :moon:随机访问流
+### 随机访问流
 
 随机访问流（Random Access Streams）是一种允许在文件中进行随机读写操作的流，它可以在文件中以任意顺序读取或写入数据，而不需要按顺序处理整个文件。在 Java 中，`RandomAccessFile` 是用于创建随机访问流的类，它提供了一系列方法来在文件中定位并进行读写操作。
 
@@ -8684,11 +9592,391 @@ public class RandomAccessFileDemo {
 
 ```
 
-RandomAccessFile 实现大文件续点上传 ...
+RandomAccessFile 可以实现大文件续点上传
 
-### FilterOutputStream & FilterInputStream
+### FilterOutputStream & FilterInputStream & FilterWriter & FilterReader
+
+重点在于理解 Filter 前缀，我们可以参考 FilterOuputStream 和 FilterReader 的注释。
+
+FilterOutputStream
+
+```java
+/**
+ * A <code>FilterInputStream</code> contains
+ * some other input stream, which it uses as
+ * its  basic source of data, possibly transforming
+ * the data along the way or providing  additional
+ * functionality. The class <code>FilterInputStream</code>
+ * itself simply overrides all  methods of
+ * <code>InputStream</code> with versions that
+ * pass all requests to the contained  input
+ * stream. Subclasses of <code>FilterInputStream</code>
+ * may further override some of  these methods
+ * and may also provide additional methods
+ * and fields.
+ *
+ * @author  Jonathan Payne
+ * @since   1.0
+ */
+public
+class FilterInputStream extends InputStream {
+    /**
+     * The input stream to be filtered.
+     */
+    protected volatile InputStream in;
+
+    /**
+     * Creates a <code>FilterInputStream</code>
+     * by assigning the  argument <code>in</code>
+     * to the field <code>this.in</code> so as
+     * to remember it for later use.
+     *
+     * @param   in   the underlying input stream, or <code>null</code> if
+     *          this instance is to be created without an underlying stream.
+     */
+    protected FilterInputStream(InputStream in) {
+        this.in = in;
+    }
+    
+    // ... ... ... ...
+}
+```
+
+FilterReader
+
+```java
+/**
+ * Abstract class for reading filtered character streams.
+ * The abstract class <code>FilterReader</code> itself
+ * provides default methods that pass all requests to
+ * the contained stream. Subclasses of <code>FilterReader</code>
+ * should override some of these methods and may also provide
+ * additional methods and fields.
+ *
+ * @author      Mark Reinhold
+ * @since       1.1
+ */
+
+public abstract class FilterReader extends Reader {
+
+    /**
+     * The underlying character-input stream.
+     */
+    protected Reader in;
+
+    /**
+     * Creates a new filtered reader.
+     *
+     * @param in  a Reader object providing the underlying stream.
+     * @throws NullPointerException if <code>in</code> is <code>null</code>
+     */
+    protected FilterReader(Reader in) {
+        super(in);
+        this.in = in;
+    }
+```
+
+由注释可知，FilterInputStream 和 FilterReader 是为了在某个 InpuStream 和 Reader 的对象的基础上新增功能。FilterInputStream 和 FilterReader 都有一个对应的 InputStream 和 Reader 对象，是被增强的对象，通过重写 read 等方法进行增强。体现了装饰者模式的思想，即在不改变原有对象的情况下增强对象。
 
 ### 字符流和字节流互相转换
 
+在使用 FileWriter 和 FileReader 时，我们发现其实现依赖于 OutputStreamWriter 和 InputStreamReader，前者把写入的字符转换为特定字符编码的字节，后者把读入的特定编码格式的字节解码为对应字符。也就是说，OutputStreamWriter 将字符转换为字节，InputStreamReader 将字符转换为字节。
+
+字符流转换为字节流
+
+```java
+package com.congee02.char2bytes;
+
+import java.io.*;
+import java.util.Date;
+
+public class Char2Bytes {
+
+    private static final String CHAR2BYTE_WRITE_FILE_PATH = "char2byte.txt";
+
+    private static OutputStreamWriter writer() throws FileNotFoundException {
+        return new OutputStreamWriter(new BufferedOutputStream(new FileOutputStream(CHAR2BYTE_WRITE_FILE_PATH)));
+    }
+
+    public static void main(String[] args) {
+        try (final OutputStreamWriter writer = writer()) {
+            String text = "CREATE TIME: " + new Date();
+            writer.write(text);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+}
+
+```
+
+写入的文件
+
+```java
+CREATE TIME: Mon Aug 21 09:29:34 CST 2023
+```
+
+字节流转换为字符流
+
+```java
+package com.congee02.char2bytes;
+
+import java.io.*;
+
+public class Byte2Char {
+
+    private final static String BYTE2CHAR_READ_FILE = "chinese-info.txt";
+
+    public static InputStreamReader reader() throws FileNotFoundException {
+        return new InputStreamReader(new BufferedInputStream(new FileInputStream(BYTE2CHAR_READ_FILE)));
+    }
+
+    public static void main(String[] args) {
+        try (final InputStreamReader reader = reader()) {
+            System.out.println("当前文件编码: " + reader.getEncoding());
+            int readChar;
+            while ((readChar = reader.read()) != -1) {
+                System.out.print((char) readChar);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+}
+
+```
+
+读入的文件
+
+```
+你好，Java IO.
+```
+
+运行结果：
+
+```java
+当前文件编码: UTF8
+你好，Java IO.
+```
 
 
+
+### 	Java IO 中的设计模式
+
+#### 装饰者模式
+
+**装饰器（Decorator）模式** 可以在不改变原有对象的情况下拓展其功能。
+
+装饰器模式通过组合替代继承来扩展原始类的功能，在一些继承关系比较复杂的场景更加实用。
+
+对于字节流来说， `FilterInputStream` （对应输入流）和`FilterOutputStream`（对应输出流）是装饰器模式的核心，分别用于增强 `InputStream` 和`OutputStream`子类对象的功能。
+
+装饰器核心在于 FilterInputStream, FilterOutputStream, FilterReader, FilterWriter，继承于 InputStream, OutputStream, Reader, Writer，而自己拥有其父类的对象，在重写或者实现父类方法时，默认使用其对象的方法（当然要实现功能加强，就必须重写）。以 FilterInputStream 为例
+
+```java
+package java.io;
+
+public
+class FilterInputStream extends InputStream {
+    /**
+     * The input stream to be filtered.
+     */
+    protected volatile InputStream in;
+
+    protected FilterInputStream(InputStream in) {
+        this.in = in;
+    }
+
+    public int read() throws IOException {
+        return in.read();
+    }
+
+    public int read(byte b[]) throws IOException {
+        return read(b, 0, b.length);
+    }
+
+    public int read(byte b[], int off, int len) throws IOException {
+        return in.read(b, off, len);
+    }
+    
+    
+    public long skip(long n) throws IOException {
+        return in.skip(n);
+    }
+
+    public int available() throws IOException {
+        return in.available();
+    }
+
+    public void close() throws IOException {
+        in.close();
+    }
+
+    public synchronized void mark(int readlimit) {
+        in.mark(readlimit);
+    }
+
+    public synchronized void reset() throws IOException {
+        in.reset();
+    }
+
+    public boolean markSupported() {
+        return in.markSupported();
+    }
+}
+
+```
+
+基于装饰器自己继承其父类并拥有父类对象的特性，允许对原始类嵌套多个装饰器用来动态地为原始类增强功能，这样就巧妙避免了由于 IO 错综复杂的继承关系而导致的“类爆炸”问题。
+
+
+
+#### 适配器模式
+
+**适配器（Adapter Pattern）模式** 主要用于接口互不兼容的类的协调工作，你可以将其联想到我们日常经常使用的电源适配器。
+
+适配器模式中存在被适配的对象或者类称为 **源接口 Source** ，作用于适配者的对象或者类称为**适配器(Adapter)** ，其目标结构被称为 **目标接口 Destination**。适配器分为对象适配器和类适配器。类适配器使用继承关系来实现，对象适配器使用组合关系来实现。
+
+当我们使用 FileReader 读文件时，实际上读入的是字节数据（源接口 Source），而我们需要的是字符数据（目标结构 Destination），这中间就需要 InputStreamReader（适配器 Adapter）使用 StreamDecoder 来将 Source 转换为 Destination。使用 FileWriter 写文件时同理，最开始有的是字符数据（要写入的字符串，Source），而写入文件时，需要的是字节数据（写入字节，Destination），中间就需要 OutputStreamWriter （Adapter） 将字符流通过 StreamEncoder 将 Source 转换为 Destination。
+
+##### 装饰器模式和适配器模式的区别
+
+**装饰器模式** 更侧重于动态地增强原始类的功能，装饰器类需要跟原始类继承相同的抽象类或者实现相同的接口。并且，装饰器模式支持对原始类嵌套使用多个装饰器。
+
+**适配器模式** 更侧重于让接口不兼容而不能交互的类可以一起工作，当我们调用适配器对应的方法时，适配器内部会调用适配者类或者和适配类相关的类的方法，这个过程透明的。
+
+
+
+#### 工厂模式
+
+**工厂模式**是一种创建对象的设计模式，它提供了一种将对象的实例化逻辑与客户端代码分离的方法。这有助于提高代码的可维护性、可扩展性和灵活性。工厂模式通常被用于**创建复杂对象或对象集合**，以及在不同情况下根据需要选择正确的对象创建方式。
+
+NIO 中提供了大量静态的工厂方法来创建对象，比如 Files.newBufferedReader
+
+```java
+public static BufferedReader newBufferedReader(Path path, Charset cs)
+    throws IOException
+{
+    CharsetDecoder decoder = cs.newDecoder();
+    Reader reader = new InputStreamReader(newInputStream(path), decoder);
+    return new BufferedReader(reader);
+}
+```
+
+Simple-Demonstration
+
+```java
+public class NIOApi {
+
+    public static void main(String[] args) throws IOException {
+        final BufferedReader reader =
+                Files.newBufferedReader(Path.of("1984.txt"), StandardCharsets.UTF_8);
+    }
+
+}
+
+```
+
+
+
+#### 观察者模式
+
+观察者模式（Observer Pattern）是一种软件设计模式，属于行为型模式的一种。它用于在对象之间建立一种一对多的依赖关系，使得当一个对象的状态发生变化时，其所有依赖的对象都能够自动收到通知并更新。
+
+NIO 中的文件目录监听服务基于 WatchService 接口 和 Watchable 接口。WatchService 属于观察者，Watchable 属于被观察者。
+
+```java
+package com.congee02.nio;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.List;
+
+/**
+ * 文件监视服务
+ */
+public class FileWatcherNIO {
+
+    public static void main(String[] args) throws IOException, InterruptedException {
+
+        // 文件目录监视器
+        WatchService observer = FileSystems.getDefault().newWatchService();
+        // 要监视的目录
+        Path observeDirectory = Paths.get("watching-dir");
+
+        // 监视的事件：创建、删除、修改
+        List<WatchEvent.Kind<Path>> eventList =
+                List.of(StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_DELETE, StandardWatchEventKinds.ENTRY_MODIFY);
+        WatchEvent.Kind[] eventArray = new WatchEvent.Kind[eventList.size()];
+        eventList.toArray(eventArray);
+
+        // 注册监视目录给目录监视器
+        observeDirectory.register(observer, eventArray);
+
+        // 死循环监视
+        while (true) {
+            WatchKey key = observer.take();
+            for (WatchEvent<?> event : key.pollEvents()) {
+                System.out.println(System.nanoTime() + " 文件: " + event.context() + "; 事件: " + event.kind());
+            }
+            key.reset();
+        }
+
+    }
+
+}
+
+```
+
+
+
+### Java IO 模型
+
+#### Intro 深入理解 IO 模型
+
+IO 即 Input/Output，即输入和输出。
+
+根据冯诺依曼结构，计算机由五大部分组成：运算器、控制器、存储器、输入设备、输出设备。
+
+![1200px-Von_Neumann_Architecture.svg](assets/1200px-Von_Neumann_Architecture.svg.png)
+
+明显地，输入设备向计算机输出数据，计算机处理完成后，将结果输出到输出设备上。
+
+简言之，从计算机结构的视角来看，IO 操作其实就是计算机内部系统和外部设备交互的过程。
+
+此外，我们需要以应用程序的视角，来了解应用程序如何调取 IO 操作。
+
+操作系统中，为了保证操作系统的稳定性和安全性，一个进程的地址空间被划分为 用户空间 和 内核空间。
+
+而系统资源相关的服务在内核空间，这就意味着，如果在用户空间的应用程序想要调取 IO 操作，就必须先陷入到内核态请求操作系统 IO 服务（系统调用）
+
+**从应用程序的视角来看的话，我们的应用程序对操作系统的内核发起 IO 调用（系统调用），操作系统负责的内核执行具体的 IO 操作。也就是说，我们的应用程序实际上只是发起了 IO 操作的调用而已，具体 IO 的执行是由操作系统的内核来完成的。**
+
+当应用程序发起 I/O 调用后，会经历两个步骤：
+
+1. 内核等待 I/O 设备准备好数据
+2. 内核将数据从内核空间拷贝到用户空间
+
+
+
+#### 常见的 IO 模型
+
+UNIX 系统下，IO 模型一共有：同步阻塞 I/O、同步非阻塞 I/O、I/O 多路复用、信号驱动 I/O 和 异步 I/O
+
+
+
+#### Java 中 3 种常见的 I/O 模型
+
+##### BIO
+
+阻塞 I/O，也称为同步 I/O，是一种传统的 I/O 处理方式。在这种模型中，当程序进行 I/O  操作时，它会被阻塞，直到数据完全读取或写入完成。这意味着在进行网络通信或文件操作时，线程会一直等待，直到数据准备好或写入完成。BIO  模型相对简单，但在高并发情况下可能导致资源浪费和性能问题。
+
+##### NIO
+
+非阻塞 I/O，也称为同步非阻塞 I/O，是一种改进的 I/O 处理方式。在 NIO 模型中，应用程序可以继续执行其他任务，而不必等待 I/O  操作完成。它使用了一些辅助的机制，如选择器（Selector）和通道（Channel），来实现同时管理多个 I/O  操作。这使得一个线程可以处理多个连接，从而提高了系统的并发性能。
+
+##### AIO
+
+异步 I/O，是一种更高级的 I/O 处理方式。在 AIO 模型中，应用程序提交 I/O  操作请求后，不需要等待操作完成，而是继续执行其他任务。当操作完成时，系统会通知应用程序。这种方式可以显著提高系统的并发性和吞吐量，适用于处理大量并发连接的场景，如高性能网络服务器。

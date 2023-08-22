@@ -486,3 +486,161 @@ public class CollectionEnhancedForLoop {
 }
 
 ```
+
+
+
+## List 子列表元素的改变会作用到源列表中
+
+这是极其明显的，可以查看 ArrayList 的 subList 实现。
+
+```java
+public List<E> subList(int fromIndex, int toIndex) {
+    subListRangeCheck(fromIndex, toIndex, size);
+    return new SubList<>(this, fromIndex, toIndex);
+}
+```
+
+返回的是一个 SubList 类型，是 ArrayList 的内部类。
+
+```java
+private static class SubList<E> extends AbstractList<E> implements RandomAccess {
+    private final ArrayList<E> root;
+    private final SubList<E> parent;
+    private final int offset;
+    private int size;
+
+    /**
+     * Constructs a sublist of an arbitrary ArrayList.
+     */
+    public SubList(ArrayList<E> root, int fromIndex, int toIndex) {
+        this.root = root;
+        this.parent = null;
+        this.offset = fromIndex;
+        this.size = toIndex - fromIndex;
+        this.modCount = root.modCount;
+    }
+    
+    // ... ... ... ...
+}
+```
+
+每次 SubList 执行操作时，实际上是操作其 root 也就是其祖先 ArrayList。
+
+```java
+public E set(int index, E element) {
+    Objects.checkIndex(index, size);
+    checkForComodification();
+    E oldValue = root.elementData(offset + index);
+    root.elementData[offset + index] = element;
+    return oldValue;
+}
+
+public E get(int index) {
+    Objects.checkIndex(index, size);
+    checkForComodification();
+    return root.elementData(offset + index);
+}
+
+public int size() {
+    checkForComodification();
+    return size;
+}
+
+public void add(int index, E element) {
+    rangeCheckForAdd(index);
+    checkForComodification();
+    root.add(offset + index, element);
+    updateSizeAndModCount(1);
+}
+
+public E remove(int index) {
+    Objects.checkIndex(index, size);
+    checkForComodification();
+    E result = root.remove(offset + index);
+    updateSizeAndModCount(-1);
+    return result;
+}
+
+protected void removeRange(int fromIndex, int toIndex) {
+    checkForComodification();
+    root.removeRange(offset + fromIndex, offset + toIndex);
+    updateSizeAndModCount(fromIndex - toIndex);
+}
+
+public boolean addAll(Collection<? extends E> c) {
+    return addAll(this.size, c);
+}
+```
+
+
+
+## Java 方法普通对象参数传递为浅拷贝，数组为深拷贝
+
+```java
+package com.congee02;
+
+import com.congee02.entity.Address;
+import com.congee02.entity.Person;
+import com.congee02.utils.DemonstrateEntity;
+
+import java.util.Arrays;
+
+public class MethodObjectPass {
+
+    private static void printPersonIdentityAndSetAddress(Person person) {
+        System.out.println(System.identityHashCode(person));
+        // 能影响 person 内部的内容，但是不能影响 person。所以为浅拷贝
+        person.setAddress(new Address("甘肃"));
+        person = null;
+    }
+
+    private static void swap(int[] arr, int x, int y) {
+        int t = arr[x];
+        arr[x] = arr[y];
+        arr[y] = t;
+    }
+
+    private static final Runnable normalPassValue = DemonstrateEntity.create("1. 参数传递拷贝", () -> {
+        final Person person = new Person("浙江");
+        printPersonIdentityAndSetAddress(person);
+        System.out.println(System.identityHashCode(person));
+        System.out.println(person);
+    });
+
+    private static final Runnable arrayPassValue = DemonstrateEntity.create("2. 数组参数传递", () -> {
+        int[] is = {1, 2, 3};
+        System.out.println("源数组: " + Arrays.toString(is));
+        swap(is, 0, 1);
+        System.out.println("交换索引为 0 和 1 的数: " + Arrays.toString(is));
+    });
+
+    public static void main(String[] args) {
+        normalPassValue.run();
+        arrayPassValue.run();
+    }
+
+}
+
+```
+
+运行结果：
+
+```
+----------	1. 参数传递拷贝	----------
+2137211482
+2137211482
+Person{address=Address{address='甘肃'}}
+----------	2. 数组参数传递	----------
+源数组: [1, 2, 3]
+交换索引为 0 和 1 的数: [2, 1, 3]
+```
+
+
+
+### 隐式类型转化是针对于基本数据类型来说的
+
+```java
+long l = 2; 	// 基本类型隐式转换，编译通过
+Long l1 = 2; 	// 包装类不支持隐式类型
+```
+
