@@ -7964,7 +7964,7 @@ private void enqueue(E e) {
 
 #### ArrayBlockingQueue 原理图
 
-![d1520c7e5f034236a395461426c1539d~tplv-k3u1fbpfcp-zoom-in-crop-mark 1512 0 0 0](assets/d1520c7e5f034236a395461426c1539dtplv-k3u1fbpfcp-zoom-in-crop-mark 1512 0 0 0.webp)
+![image-20230823183618286](assets/image-20230823183618286.png)
 
 
 
