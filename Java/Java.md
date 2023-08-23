@@ -7741,6 +7741,665 @@ pause 指令能让自旋失败时 CPU 睡眠一小段时间再继续自旋，从
 
 
 
+### BlockingQueue，阻塞队列
+
+Java 中的 BlockingQueue 支持在队列为空时，从中取元素自动阻塞等待直到队列中有元素；在队列为满时，从中放入元素自动阻塞等待直到队列不满。它是并发编程中常用的线程安全数据结构之一，用于在多线程环境下安全地传递数据，非常典型的应用就是 Producer-Consumer 问题。
+
+BlockingQueue 是一个接口，有多种常用实现类：
+
+- ArrayBlockingQueue：基于数组的有界阻塞队列
+- LinkedBlockingQueue：基于链表的无界阻塞队列
+- PriorityBlockingQueue：支持优先级排序的无界阻塞队列
+- DelayQueue：支持延迟获取元素的无界阻塞队列
+- SynchronousQueue：不存储元素的阻塞队列，用于线程间的直接传输。
+
+#### 基本使用
+
+无界阻塞队列没有固定容量限制，适用于生产者速度远大于消费者；有界阻塞队列有容量限制，适用于平衡生产者和消费者，控制资源使用。
+
+BlockingQueue 的主要 API 有：
+
+| 方法签名                                                     | 功能描述                                                     |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| `void put(E element) throws InterruptedException`            | 将指定元素放入队列，如果队列已满则阻塞等待直到有空间可用。   |
+| `E take() throws InterruptedException`                       | 从队列中取出并移除一个元素，如果队列为空则阻塞等待直到有元素可取。 |
+| `boolean offer(E element, long timeout, TimeUnit unit) throws InterruptedException` | 将指定元素放入队列，如果队列已满则等待一段时间，超时后返回 `false`。 |
+| `E poll(long timeout, TimeUnit unit) throws InterruptedException` | 从队列中取出并移除一个元素，如果队列为空则等待一段时间，超时后返回 `null`。 |
+| `int size()`                                                 | 返回队列中的元素数量。                                       |
+| `boolean isEmpty()`                                          | 判断队列是否为空。                                           |
+| `boolean offer(E element)`                                   | 将指定元素放入队列，如果队列已满则返回 `false`。             |
+| `E poll()`                                                   | 从队列中取出并移除一个元素，如果队列为空则返回 `null`。      |
+
+为了更好地理解 BlockingQueue 阻塞的特性，我们只有生产者而没有消费者
+
+```java
+package com.congee02.multithread.blockingqueue;
+
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+
+public class ProducerNoConsumerBlockingQueue {
+
+    private static final int BUFFER_SIZE = 3;
+
+    private static final BlockingQueue<String> BUFFER = new ArrayBlockingQueue<>(BUFFER_SIZE);
+
+    private static final String BUFFER_ELEMENT_PREFIX = "buffer-";
+
+    private static final Runnable producerRunnable = () -> {
+        try {
+            for (int i = 0 ; i < 10 ; i ++ ) {
+                String currentProduct = BUFFER_ELEMENT_PREFIX + i;
+                Thread.sleep(1);
+                // 尝试添加产品到缓冲区
+                boolean notFull = BUFFER.offer(currentProduct);
+                // 若失败，则阻塞等待缓冲区不满，然后添加产品。
+                if (! notFull) {
+                    System.out.println("队列已满，阻塞等待队列有空位");
+                    BUFFER.put(currentProduct);
+                }
+                System.out.println("产品 " + currentProduct + " 已经放入缓冲区中");
+            }
+        } catch (InterruptedException e) {
+            System.err.println(e.getMessage());
+        }
+    };
+
+    public static void main(String[] args) {
+        Thread producer
+                = new Thread(producerRunnable, "ProducerNoConsumerBlockingQueue-Producer");
+        producer.start();
+    }
+
+}
+
+```
+
+运行结果：
+
+```java
+产品 buffer-0 已经放入缓冲区中
+产品 buffer-1 已经放入缓冲区中
+产品 buffer-2 已经放入缓冲区中
+队列已满，阻塞等待队列有空位
+
+```
+
+可见，在队列已满时，调用其 put 方法会使其阻塞，这就是 BlockingQueue 提供的阻塞特性。
+
+下面再来看典型的生产者消费者情形。
+
+```java
+package com.congee02.multithread.blockingqueue;
+
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+
+public class ProducerConsumerBlockingQueue {
+
+    // 缓冲区大小
+    private static final int BUFFER_SIZE = 3;
+    // 产品数量
+    private static final int PRODUCT_NUM = 10;
+
+    // 缓冲区
+    private static final BlockingQueue<String> BUFFER = new ArrayBlockingQueue<>(BUFFER_SIZE);
+
+    private static final String BUFFER_PRODUCT_PREFIX = "product-";
+
+    private static final Runnable producerRunnable = () -> {
+        try {
+            for (int i = 0 ; i < PRODUCT_NUM ; i ++ ) {
+                Thread.sleep(1);
+                String currentProduct = BUFFER_PRODUCT_PREFIX + i;
+                // 尝试添加产品到缓冲区
+                boolean notFull = BUFFER.offer(currentProduct);
+                // 若失败，则阻塞等待缓冲区不满，即消费者消费后，然后添加产品。
+                if (! notFull) {
+                    System.out.println("队列已满，阻塞等待队列有空位");
+                    BUFFER.put(currentProduct);
+                }
+                System.out.println("产品 " + currentProduct + " 已经放入缓冲区中");
+            }
+        } catch (InterruptedException e) {
+            System.err.println(e.getMessage());
+        }
+        System.out.println("生产者完成");
+    };
+
+    private static final Runnable consumerRunnable = () -> {
+        try {
+            for (int i = 0 ; i < PRODUCT_NUM ; i ++ ) {
+                Thread.sleep(1);
+                // 尝试取出缓冲区队头的元素
+                String product = BUFFER.poll();
+
+                boolean notEmpty = product != null;
+                // 若失败，则阻塞等待缓冲区为空，等待缓冲区不空，即生产者消费后，然后消费产品
+                if (! notEmpty) {
+                    product = BUFFER.take();
+                    System.out.println("队列已空，阻塞等待队列有产品");
+                }
+                System.out.println("消费者消费 " + product + "; 是否有");
+            }
+        } catch (InterruptedException e) {
+            System.err.println(e.getMessage());
+        }
+        System.out.println("消费者完成");
+    };
+
+    public static void main(String[] args) {
+        Thread producer = new Thread(producerRunnable, "producer");
+        Thread consumer = new Thread(consumerRunnable, "consumer");
+        producer.start();
+        consumer.start();
+    }
+
+}
+
+```
+
+
+
+#### ArrayBlockingQueue 源码分析
+
+参考：https://juejin.cn/post/7235714313720397884
+
+构造器
+
+```java
+public ArrayBlockingQueue(int capacity, boolean fair) {
+    if (capacity <= 0)
+        throw new IllegalArgumentException();
+    this.items = new Object[capacity];
+    lock = new ReentrantLock(fair);
+    notEmpty = lock.newCondition();
+    notFull =  lock.newCondition();
+}
+```
+
+发现其中使用到了公平重入锁和两个 Condition
+
+put 方法
+
+```java
+public void put(E e) throws InterruptedException {
+    Objects.requireNonNull(e);
+    final ReentrantLock lock = this.lock;
+    lock.lockInterruptibly();
+    try {
+        while (count == items.length)
+            notFull.await();
+        enqueue(e);
+    } finally {
+        lock.unlock();
+    }
+}
+```
+
+使用 ReentrantLock 加锁，再尝试往阻塞对类中加入元素，如果当前队列满则调用 notFull.await() 进行等待，然后将当前线程加入到 notFull 的 Condition 等待队列中，等到队列未满被唤醒然后调用 enqueue(e) 添加元素，最后释放锁，下面来看看 enque(E x) 方法
+
+enqueue 方法
+
+```java
+/**
+ * Inserts element at current put position, advances, and signals.
+ * Call only when holding lock.
+ */
+private void enqueue(E e) {
+    // assert lock.isHeldByCurrentThread();
+    // assert lock.getHoldCount() == 1;
+    // assert items[putIndex] == null;
+    final Object[] items = this.items;
+    items[putIndex] = e;
+    if (++putIndex == items.length) putIndex = 0;
+    count++;
+    notEmpty.signal();
+}
+```
+
+添加元素之后调用 notEmpty.signal() 唤醒 notEmpty 队列中队头的消费者。
+
+
+
+#### ArrayBlockingQueue 原理图
+
+![d1520c7e5f034236a395461426c1539d~tplv-k3u1fbpfcp-zoom-in-crop-mark 1512 0 0 0](assets/d1520c7e5f034236a395461426c1539dtplv-k3u1fbpfcp-zoom-in-crop-mark 1512 0 0 0.webp)
+
+
+
+### ThreadPoolExecutor 线程池
+
+线程池是一种利用池化思想来实现的线程管理计数，主要是为了复用线程、遍历地管理线程和任务，并将线程的创建和任务的执行解耦合。允许我们创建线程池来复用已经创建的线程来降低频繁创建和销毁线程锁带来的资源消耗。在JAVA中主要是使用ThreadPoolExecutor类来创建线程池，并且JDK中也提供了Executors工厂类来创建线程池（不推荐使用）。
+
+![image-20230823142857530](assets/image-20230823142857530.png)
+
+Java 开发手册规定：
+
+<span style="color: red">【强制】</span>线程资源必须通过线程池提供，不允许在应用中自行显式创建线程。
+说明：线程池的好处是减少在创建和销毁线程上所消耗的时间以及系统资源的开销，解决资源不足的问题。如果不使用
+线程池，有可能造成系统创建大量同类线程而导致消耗完内存或者“过度切换”的问题。
+
+#### JDK 提供的 ThreadPoolExecutor 线程池
+
+| 方法名称                                   | 描述                                                         |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| `newFixedThreadPool(int nThreads)`         | 创建一个固定大小的线程池，核心线程数和最大线程数都为指定的数量。 |
+| `newCachedThreadPool()`                    | 创建一个根据需要创建新线程的线程池，适用于执行许多短期异步任务的情况。 |
+| `newSingleThreadExecutor()`                | 创建一个只有一个核心线程的线程池，适用于需要保证任务顺序执行的场景。 |
+| `newScheduledThreadPool(int corePoolSize)` | 创建一个固定大小的线程池，可用于定时任务的调度。除了核心线程外，还有额外的工作线程。 |
+| `newWorkStealingPool(int parallelism)`     | 创建一个并行工作窃取线程池，核心线程数等于指定的并行度，适用于利用多核处理器执行并行任务。 |
+
+Java 开发手册规定：
+
+<span style="color: red;">【强制】</span>线程池不允许使用 Executors 去创建，而是通过 ThreadPoolExecutor 的方式，这样的处理方式让写的同学更加明确线程池的运行规则，规避资源耗尽的风险。
+
+1）FixedThreadPool 和 SingleThreadPool：
+允许的请求队列长度为 Integer.MAX_VALUE，可能会堆积大量的请求，从而导致 OOM。
+2）CachedThreadPool：
+允许的创建线程数量为 Integer.MAX_VALUE，可能会创建大量的线程，从而导致 OOM。
+3）ScheduledThreadPool：
+
+允许的请求队列长度为 Integer.MAX_VALUE，可能会堆积大量的请求，从而导致 OOM。
+
+
+
+因此这里不做过多的阐述，详情请读：https://cloud.tencent.com/developer/article/1638175，下面我们来看如何通过 ThreadPoolExecutor 的方式创建。
+
+
+
+#### 通过 ThreadPoolExecutor 的方式创建线程池
+
+ThreadPoolExecutor 是 Java 中主要的线程池实现，相对于 JDK 提供的线程池来说，ThreadPoolExecutor 更加灵活和稳定。
+
+以下是 ThreadPoolExecutor 的关键参数：
+
+| 参数                     | 描述                                                         |
+| ------------------------ | ------------------------------------------------------------ |
+| corePoolSize             | 线程池中保持的核心线程数量。                                 |
+| maximumPoolSize          | 线程池中允许的最大线程数量。                                 |
+| keepAliveTime            | 在核心线程之外的多余线程在空闲一段时间后会被回收。           |
+| unit                     | keepAliveTime 参数的时间单位。                               |
+| workQueue                | 用于存储等待执行的任务的队列。                               |
+| threadFactory            | 创建新线程的工厂。                                           |
+| rejectedExecutionHandler | 当工作队列已满并且线程池中的线程数已达到最大值时的拒绝策略。 |
+
+构造器
+
+```java
+public ThreadPoolExecutor(int corePoolSize,
+                          int maximumPoolSize,
+                          long keepAliveTime,
+                          TimeUnit unit,
+                          BlockingQueue<Runnable> workQueue,
+                          ThreadFactory threadFactory,
+                          RejectedExecutionHandler handler) {
+    if (corePoolSize < 0 ||
+        maximumPoolSize <= 0 ||
+        maximumPoolSize < corePoolSize ||
+        keepAliveTime < 0)
+        throw new IllegalArgumentException();
+    if (workQueue == null || threadFactory == null || handler == null)
+        throw new NullPointerException();
+    this.corePoolSize = corePoolSize;
+    this.maximumPoolSize = maximumPoolSize;
+    this.workQueue = workQueue;
+    this.keepAliveTime = unit.toNanos(keepAliveTime);
+    this.threadFactory = threadFactory;
+    this.handler = handler;
+}
+```
+
+#### ThreadPoolExecutor 继承结构
+
+![ThreadPoolExecutor](assets/ThreadPoolExecutor.png)
+
+Executor 接口 提供 将 任务执行 和 线程创建 解耦合的抽象。
+
+ExecutorService 是对 Executor 接口的扩展，在 Executor 的基础上，声明了一些管理线程池本身的方法，比如查看任务状态、stop/terminal 线程池、获取线程池的状态等等。
+
+#### 线程池生命周期
+
+![threadpool-lifecycle.drawio](assets/threadpool-lifecycle.drawio.png)
+
+#### 线程池状态表示
+
+在 ThreadPoolExecutor 中使用一个 AtomicInteger 类型的 clt 字段描述线程池的运行状态和线程状态和线程数量，通过 ctl 的高三位来表示线程池的 5 种状态，低 29 位表示线程池中现有的线程数量。这样设计是为了使用最少的变量来减少锁竞争，提高并发效率。所以线程池最多可能有 $ 2^{29} $ 个有效线程。
+
+![threadpool-clt.drawio](assets/threadpool-clt.drawio.png)
+
+```java
+// 初始状态为 RUNNING，没有线程
+private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+
+// 有效线程数量在 ctl 中占 Integer.SIZE(32) - 3 = 29 位
+private static final int COUNT_BITS = Integer.SIZE - 3;
+// COUNT_MASK = 0B11111...111 (29个1)
+private static final int COUNT_MASK = (1 << COUNT_BITS) - 1;
+
+// 线程池状态 x << 29
+private static final int RUNNING    = -1 << COUNT_BITS;		// 111 << 29
+private static final int SHUTDOWN   =  0 << COUNT_BITS;		// 000 << 29
+private static final int STOP       =  1 << COUNT_BITS;		// 001 << 29
+private static final int TIDYING    =  2 << COUNT_BITS;		// 010 << 29
+private static final int TERMINATED =  3 << COUNT_BITS;		// 011 << 29
+
+// 线程状态 = ctl & ~COUNT_MASK
+private static int runStateOf(int c)     { return c & ~COUNT_MASK; }
+// 有效线程数量 = ctl & COUNT_MASK
+private static int workerCountOf(int c)  { return c & COUNT_MASK; }
+// ctl = 线程池状态 | 有效线程数量
+private static int ctlOf(int rs, int wc) { return rs | wc; }
+```
+
+
+####  ThreadPoolExecutor 工作原理
+
+当有一个任务提交到处于 RUNNING 状态的 ThreadPoolExecutor 实例时：
+
+![m3cfd5qj57](assets/m3cfd5qj57.png)
+
+##### execute(Runnable) 执行任务
+
+```java
+public void execute(Runnable command) {
+    if (command == null)
+        throw new NullPointerException();
+    // 获取 ctl
+    int c = ctl.get();
+    // corePoolSize 未满，尝试创建线程执行任务，并将其视为核心线程。
+    // 若创建线程失败，则可能在创建期间，核心线程池已满，或者线程池不接受新任务，此时获取最新的 ctl
+    if (workerCountOf(c) < corePoolSize) {
+        if (addWorker(command, true))
+            return;
+        c = ctl.get();
+    }
+    // corePoolSize 已满
+    // 当前线程池正在运行并且尝试向等待队列添加任务成功
+    if (isRunning(c) && workQueue.offer(command)) {
+        /**
+         * 为什么需要double check线程池地状态？
+         * 在往阻塞队列中添加任务地时候，有可能阻塞队列已满，需要等待其他的任务移出队列，
+         * 在这个过程中，线程池的状态可能会发生变化，所以需要doublecheck
+         * 如果在往阻塞队列中添加任务地时候，线程池地状态发生变化，则需要将任务移除
+         */
+        // 再次获取 ctl，再次确认
+        int recheck = ctl.get();
+        // 如果此时线程池不在运行，则尝试在等待队列移除当前任务。
+        // 如果移除当前任务成功，拒绝该任务
+        if (! isRunning(recheck) && remove(command))
+            reject(command);
+        
+        else if (workerCountOf(recheck) == 0)
+            addWorker(null, false);
+    }
+    // 等待队列添加失败，再次尝试，如果还是失败，则拒绝
+    else if (!addWorker(command, false))
+        reject(command);
+}
+```
+
+##### addWorker(Runnable firstTask, boolean core) 创建线程加入线程池
+
+```java
+private boolean addWorker(Runnable firstTask, boolean core) {
+    retry:
+    for (int c = ctl.get();;) {
+        // 线程处于非 RUNNING 状态
+        // 状态非 RUNNING && ((状态为 STOP 或者 TIDYING 或者 TERMINATED) || 首个任务非空 || 工作队列为空)
+        // 也就是当前线程池不在运行，在等待其他线程结束，则添加失败
+        if (runStateAtLeast(c, SHUTDOWN)
+            && (runStateAtLeast(c, STOP)
+                || firstTask != null
+                || workQueue.isEmpty()))
+            return false;
+
+        for (;;) {
+            // 如果当前线程数量大于 corePoolSize 或者 maximumPoolSize（取决于是否是核心线程），则添加失败
+            if (workerCountOf(c)
+                >= ((core ? corePoolSize : maximumPoolSize) & COUNT_MASK))
+                return false;
+            // 尝试使用 CAS 提高当前线程数量，如果成功，退出 retry 循环
+            if (compareAndIncrementWorkerCount(c))
+                break retry;
+            // 再次读 ctl
+            c = ctl.get();  // Re-read ctl
+            if (runStateAtLeast(c, SHUTDOWN))
+                continue retry;
+            // else CAS failed due to workerCount change; retry inner loop
+        }
+    }
+
+    boolean workerStarted = false;
+    boolean workerAdded = false;
+    Worker w = null;
+    try {
+        // 创建一个线程
+        w = new Worker(firstTask);
+        final Thread t = w.thread;
+        if (t != null) {
+            // 上锁
+            final ReentrantLock mainLock = this.mainLock;
+            mainLock.lock();
+            try {
+                // Recheck while holding lock.
+                // Back out on ThreadFactory failure or if
+                // shut down before lock acquired.
+                // 再次获取 ctl
+                int c = ctl.get();
+				
+                if (isRunning(c) ||
+                    (runStateLessThan(c, STOP) && firstTask == null)) {
+                    if (t.getState() != Thread.State.NEW)
+                        throw new IllegalThreadStateException();
+                    // 向线程 set 添加 worker
+                    workers.add(w);
+                    // 添加有效线程成功
+                    workerAdded = true;
+                    int s = workers.size();
+                    if (s > largestPoolSize)
+                        largestPoolSize = s;
+                }
+            } finally {
+                // 释放锁
+                mainLock.unlock();
+            }
+            // 若添加成功，则启动
+            if (workerAdded) {
+                t.start();
+                workerStarted = true;
+            }
+        }
+    } finally {
+        if (! workerStarted)
+            addWorkerFailed(w);
+    }
+    return workerStarted;
+}
+
+```
+
+##### runWorker 执行任务
+
+```java
+final void runWorker(Worker w) {
+    // 获取执行任务线程
+    Thread wt = Thread.currentThread();
+    // 获取执行任务
+    Runnable task = w.firstTask;
+    // 先将 worker 中任务置空
+    w.firstTask = null;
+    w.unlock(); // allow interrupts
+    boolean completedAbruptly = true;
+    try {
+        while (task != null || (task = getTask()) != null) {
+            w.lock();
+            // If pool is stopping, ensure thread is interrupted;
+            // if not, ensure thread is not interrupted.  This
+            // requires a recheck in second case to deal with
+            // shutdownNow race while clearing interrupt
+            // 双重检查线程池是否正在停止，如果线程池停止，并且当前线程能够中断，则中断线程
+            if ((runStateAtLeast(ctl.get(), STOP) ||
+                 (Thread.interrupted() &&
+                  runStateAtLeast(ctl.get(), STOP))) &&
+                !wt.isInterrupted())
+                wt.interrupt();
+            try {
+                // 前置执行任务钩子函数
+                beforeExecute(wt, task);
+                try {
+                    // 执行任务
+                    task.run();
+                    // 后置执行任务钩子函数
+                    afterExecute(task, null);
+                } catch (Throwable ex) {
+                    afterExecute(task, ex);
+                    throw ex;
+                }
+            } finally {
+                task = null;
+                w.completedTasks++;
+                w.unlock();
+            }
+        }
+        completedAbruptly = false;
+    } finally {
+        processWorkerExit(w, completedAbruptly);
+    }
+}
+```
+
+##### 线程池拒绝策略
+
+当线程池中的线程和等待队列中的任务已经处于饱和状态，线程池则需要执行特定的拒绝策略来拒绝提交的任务。拒绝策略由一个 RejectedExecutionHandler 接口定义：
+
+```java
+public interface RejectedExecutionHandler {
+
+    /**
+     * Method that may be invoked by a {@link ThreadPoolExecutor} when
+     * {@link ThreadPoolExecutor#execute execute} cannot accept a
+     * task.  This may occur when no more threads or queue slots are
+     * available because their bounds would be exceeded, or upon
+     * shutdown of the Executor.
+     *
+     * <p>In the absence of other alternatives, the method may throw
+     * an unchecked {@link RejectedExecutionException}, which will be
+     * propagated to the caller of {@code execute}.
+     *
+     * @param r the runnable task requested to be executed
+     * @param executor the executor attempting to execute this task
+     * @throws RejectedExecutionException if there is no remedy
+     */
+    void rejectedExecution(Runnable r, ThreadPoolExecutor executor);
+}
+```
+
+ThreadPoolExecutor 默认提供了四种拒绝策略来拒绝任务：AbortPolicy，DiscardPolicy，DiscardOldestPolicy，CallerRunsPolicy。
+
+AbortPolicy：抛出异常，让用户处理异常
+
+```java
+public static class AbortPolicy implements RejectedExecutionHandler {
+    /**
+     * Creates an {@code AbortPolicy}.
+     */
+    public AbortPolicy() { }
+
+    /**
+     * Always throws RejectedExecutionException.
+     *
+     * @param r the runnable task requested to be executed
+     * @param e the executor attempting to execute this task
+     * @throws RejectedExecutionException always
+     */
+    public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
+        throw new RejectedExecutionException("Task " + r.toString() +
+                                             " rejected from " +
+                                             e.toString());
+    }
+}
+```
+
+DiscardPolicy：什么也不做，直接丢弃
+
+```java
+public static class DiscardPolicy implements RejectedExecutionHandler {
+    /**
+     * Creates a {@code DiscardPolicy}.
+     */
+    public DiscardPolicy() { }
+
+    /**
+     * Does nothing, which has the effect of discarding task r.
+     *
+     * @param r the runnable task requested to be executed
+     * @param e the executor attempting to execute this task
+     */
+    public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
+    }
+}
+```
+
+DiscardOldestPolicy：将等待队列最开始的任务删去（poll），即删去最老的任务，然后尝试执行当前任务
+
+```java
+public static class DiscardOldestPolicy implements RejectedExecutionHandler {
+    /**
+     * Creates a {@code DiscardOldestPolicy} for the given executor.
+     */
+    public DiscardOldestPolicy() { }
+
+    /**
+     * Obtains and ignores the next task that the executor
+     * would otherwise execute, if one is immediately available,
+     * and then retries execution of task r, unless the executor
+     * is shut down, in which case task r is instead discarded.
+     *
+     * @param r the runnable task requested to be executed
+     * @param e the executor attempting to execute this task
+     */
+    public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
+        if (!e.isShutdown()) {
+            e.getQueue().poll();
+            e.execute(r);
+        }
+    }
+}
+```
+
+CallerRunsPolicy：让提交任务的线程执行任务
+
+```java
+public static class CallerRunsPolicy implements RejectedExecutionHandler {
+    /**
+     * Creates a {@code CallerRunsPolicy}.
+     */
+    public CallerRunsPolicy() { }
+
+    /**
+     * Executes task r in the caller's thread, unless the executor
+     * has been shut down, in which case the task is discarded.
+     *
+     * @param r the runnable task requested to be executed
+     * @param e the executor attempting to execute this task
+     */
+    public void rejectedExecution(Runnable r, ThreadPoolExecutor e) {
+        if (!e.isShutdown()) {
+            r.run();
+        }
+    }
+}
+```
+
+### :moon:合理设置线程池参数
+
+将任务类型分为两种类型：CPU 密集型任务、I/O 密集型任务。下面讲如何区分这两类任务。
+
+
+
+设当前的 CPU 核心数为 $ N $ 
+
 ### ReentrantLock
 
 参考：https://zhuanlan.zhihu.com/p/115543000
@@ -8235,11 +8894,345 @@ public class MultiThreadReportStatistics implements Runnable {
 
 3. 完成操作
 
+   在其他线程执行完成后，调用 countDown() 方法来减少计数值。每调用一次 countDown()，计数值减 1。
+
+   ```java
+   public void countDown() {
+       sync.releaseShared(1);
+   }
+   ```
+
 4. 触发等待
 
-
+   当计数值减为 0 时，所有调用了 await() 方法进入等待状态的线程都会被唤醒，继续执行后续操作。
 
 ### Semaphore
+
+参考：https://zhuanlan.zhihu.com/p/98593407
+
+#### 基本认识
+
+Semaphore 通常被称为 “信号量”，可以用来控制同时访问特定资源的线程数量，通过协调各个线程，以确保合理使用资源。
+
+多用于那些资源有明确访问数量限制的场景，常用于限流。
+
+比如：数据库连接池，同时进行连接的线程数量有限制，不能到达一定数量，当达到了限制数量后，后面的线程只能排队等前面的线程释放了数据库连接才能获取数据库连接。
+
+比如：停车场场景，车位数量有限，同时只能容量固定数量的车，车位满了之后只能等车位未满时才可以进入
+
+Semaphore 的关键方法如下：
+
+| 方法签名                                          | 方法描述                                                     |
+| ------------------------------------------------- | ------------------------------------------------------------ |
+| `void acquire()`                                  | 尝试获取一个信号量许可。如果许可不可用，阻塞当前线程，直到许可可用 |
+| `void acquire(int permits)`                       | 尝试获取指定数量的信号量许可。如果许可不可用，阻塞当前线程，直到指定数量的许可可用 |
+| `void release()`                                  | 释放一个信号量许可，将许可返还给信号量。这会增加信号量中可用的许可数量 |
+| `void release(int permits)`                       | 释放指定数量的信号量许可，将许可返还给信号量。将会增加信号量中可用的许可数量 |
+| `int availablePermits()`                          | 返回当前可用的信号量许可数量                                 |
+| `boolean tryAcquire()`                            | 尝试获取一个信号量许可，如果许可不可用，立即返回结果，不会阻塞线程 |
+| `boolean tryAcquire(long timeout, TimeUnit unit)` | 尝试在指定的时间内获取一个信号量去壳，如果许可在指定时间内不可用，返回结果，不阻塞线程 |
+
+Semaphore 构造器
+
+其构造器需要两个参数：初始许可证数量、锁是否公平
+
+```java
+public Semaphore(int permits, boolean fair) {
+        sync = fair ? new FairSync(permits) : new NonfairSync(permits);
+    }
+```
+
+默认为非公平锁
+
+```java
+public Semaphore(int permits) {
+    sync = new NonfairSync(permits);
+}
+```
+
+#### Semaphore 实现停车场提示牌功能
+
+每个停车场入口都有一个提示牌，上面显示着停车场的剩余车位还有多少，当剩余车位为0时，不允许车辆进入停车场，直到停车场里面有车离开停车场，这时提示牌上会显示新的剩余车位数。
+
+**业务场景 ：**
+
+1、停车场容纳总停车量10。
+
+2、当一辆车进入停车场后，显示牌的剩余车位数响应的减1.
+
+3、每有一辆车驶出停车场后，显示牌的剩余车位数响应的加1。
+
+4、停车场剩余车位不足时，车辆只能在外面等待。
+
+```java
+package com.congee02.multithread.semaphore;
+
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+
+/**
+ * Semaphore 实现停车场提示牌功能
+ */
+public class ParkingLotSign {
+
+    private final static Semaphore SEMAPHORE = new Semaphore(10, true);
+
+    private static final Runnable PARK_RUNNABLE = () -> {
+        String name = Thread.currentThread().getName();
+        System.out.println(name + ": 来到停车场");
+        System.out.println(name + ": 目前有 " + SEMAPHORE.availablePermits() + " 可用的停车位");
+        try {
+            boolean success = SEMAPHORE.tryAcquire();
+            if (! success) {
+                System.out.println(name + ": 车位已满，正在等待...");
+                SEMAPHORE.acquire();
+            }
+            System.out.println(name + ": 成功停车");
+            Thread.sleep(new Random().nextInt(10_000));
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            SEMAPHORE.release();
+            System.out.println(name + ": 驶出停车场");
+        }
+    };
+
+    private final static CarThreadFactory FACTORY = new CarThreadFactory();
+    private final static int CAR_NUM = 100;
+
+    public static void main(String[] args) {
+        ExecutorService service = Executors.newFixedThreadPool(CAR_NUM, FACTORY);
+        for (int i = 0 ; i < CAR_NUM ; i ++ ) {
+            service.submit(PARK_RUNNABLE);
+        }
+        service.shutdown();
+    }
+
+}
+
+```
+
+CarThreadFactory
+
+```java
+package com.congee02.multithread.semaphore;
+
+import java.util.concurrent.ThreadFactory;
+
+public class CarThreadFactory implements ThreadFactory {
+
+    private final String CAR_PREFIX = "CAR-";
+    private static int carId = 0;
+
+    @Override
+    public Thread newThread(Runnable r) {
+        return new Thread(r, CAR_PREFIX + (carId ++));
+    }
+}
+
+```
+
+
+
+运行结果
+
+```java
+... ... ... ... 
+CAR-22: 目前有 1 可用的停车位
+CAR-22: 成功停车
+CAR-20: 来到停车场
+CAR-51: 目前有 10 可用的停车位
+CAR-9: 目前有 10 可用的停车位
+CAR-9: 车位已满，正在等待...
+CAR-51: 车位已满，正在等待...
+CAR-17: 来到停车场
+CAR-17: 目前有 0 可用的停车位
+CAR-17: 车位已满，正在等待...
+CAR-20: 目前有 0 可用的停车位
+CAR-20: 车位已满，正在等待...
+CAR-18: 来到停车场
+CAR-18: 目前有 0 可用的停车位
+CAR-18: 车位已满，正在等待...
+CAR-53: 目前有 10 可用的停车位
+CAR-53: 车位已满，正在等待...
+... .... ... ... .... ...
+```
+
+
+
+#### Semaphore 实现原理
+
+1. Semaphore 初始化
+
+   `Semaphore semaphore = new Semaphore(2)`
+
+   当实例化 Semephore 时，默认创建一个非公平锁的同步阻塞队列。将初始许可数量赋值给同步队列的 state 状态， state 的值就代表着当前可用的令牌数量。
+
+   初始化后，AQS 同步队列：
+
+   ![semaphore-init.drawio](assets/semaphore-init.drawio.png)
+
+2. 获取许可
+
+   `semaphore.acquire()` 
+
+   当前线程会尝试从 Semaphore 获取一个许可，即使用原子操作去修改同步队列的 state，获取一个令牌，则计算 remaining为 state - 1.
+
+   若 remaining < 0，则表示许可不足，，创建一个 Node 节点加入阻塞队列，挂起当前线程
+
+   若 remaining >= 0，当前有盈余许可，许可获取成功
+
+   ```java
+   // 阻塞获取一个许可(除非线程被中断)
+   public void acquire() throws InterruptedException {
+       sync.acquireSharedInterruptibly(1);
+   }
+   
+   
+   // 共享模式下获取许可，若获取失败，则将当前线程信息包装为节点加入阻塞队列，并挂起当前线程
+   public final void acquireSharedInterruptibly(int arg)
+           throws InterruptedException {
+       if (Thread.interrupted())
+           throw new InterruptedException();
+       // 尝试获取许可(tryAcquireShared(arg))失败(< 0)
+       if (tryAcquireShared(arg) < 0)
+           // 创建节点加入 AQS 等待队列
+           doAcquireSharedInterruptibly(arg);
+   }
+   
+   /** 非公平锁的 tryAcquireShared(int) **/
+   protected int tryAcquireShared(int acquires) {
+       return nonfairTryAcquireShared(acquires);
+   }
+   final int nonfairTryAcquireShared(int acquires) {
+       for (;;) {
+           int available = getState();
+           int remaining = available - acquires;
+           // 若当前没有许可或者当前有许可且 CAS 成功，返回 remaining
+           // remaining < 0 获取许可失败，remaining >=0 获取许可成功
+           if (remaining < 0 ||
+               compareAndSetState(available, remaining))
+               return remaining;
+       }
+   }
+   
+   
+   /** 公平锁的 tryAcquireShared(int) **/
+   protected int tryAcquireShared(int acquires) {
+       for (;;) {
+           // 如果当前线程前面有其他线程，则直接获取失败（公平锁和非公平锁的关键区别）
+           if (hasQueuedPredecessors())
+               return -1;
+           int available = getState();
+           int remaining = available - acquires;
+           // 若当前没有许可或者当前有许可且 CAS 成功，返回 remaining
+           // remaining < 0 获取许可失败，remaining >=0 获取许可成功
+           if (remaining < 0 ||
+               compareAndSetState(available, remaining))
+               return remaining;
+       }
+   }
+   
+   
+   /** 将当前线程加入等待队列 **/
+   // 1. 创建节点并加入等待队列
+   // 2. 重组双向链表关系
+   // 3. 挂起当前线程
+   private void doAcquireSharedInterruptibly(int arg)
+       throws InterruptedException {
+       // 创建节点并加入等待队列
+       final Node node = addWaiter(Node.SHARED);
+       try {
+           for (;;) {
+               // 获取当前的前驱节点
+               final Node p = node.predecessor();
+               if (p == head) {
+                   int r = tryAcquireShared(arg);
+                   if (r >= 0) {
+                       setHeadAndPropagate(node, r);
+                       p.next = null; // help GC
+                       return;
+                   }
+               }
+               // 重组双向链表，消除无效节点，挂起当前线程
+               // 再次检查当前线程是否是被中断的
+               if (shouldParkAfterFailedAcquire(p, node) &&
+                   parkAndCheckInterrupt())
+                   throw new InterruptedException();
+           }
+       } catch (Throwable t) {
+           cancelAcquire(node);
+           throw t;
+       }
+   }
+   ```
+
+   ![semaphore-acquire.drawio](assets/semaphore-acquire.drawio.png)
+
+3. 释放许可
+
+   `semaphore.release()`
+
+   当调用 semaphore.release() 时，线程尝试释放一个许可，将当前  state + 1 赋值给 next，再使用 CAS 尝试将 next 的值赋给 state 直至 CAS 成功
+
+   ```java
+   public void release() {
+       sync.releaseShared(1);
+   }
+   
+   // tryReleaseShared(arg) 尝试使用 CAS 修改 state 值
+   // doReleaseShared() 唤醒等待节点
+   public final boolean releaseShared(int arg) {
+       if (tryReleaseShared(arg)) {
+           doReleaseShared();
+           return true;
+       }
+       return false;
+   }
+   
+   // 阻塞尝试释放，使用 CAS 修改 state 值，直至成功或者抛出 Error。
+   // 这个方法如果正常执行，一定不会返回 false
+   protected final boolean tryReleaseShared(int releases) {
+       for (;;) {
+           int current = getState();
+           int next = current + releases;
+           if (next < current) // overflow
+               throw new Error("Maximum permit count exceeded");
+           if (compareAndSetState(current, next))
+               return true;
+       }
+   }
+   
+   
+   // 唤醒等待队列队头的线程
+   private void doReleaseShared() {
+       for (;;) {
+           Node h = head;
+           // 头节点非空，等待列表非空
+           if (h != null && h != tail) {
+               int ws = h.waitStatus;
+               // 如果队头节点的等待状态为：需要被唤醒
+               if (ws == Node.SIGNAL) {
+                   // 如果使用 CAS　设置队头等待状态为 0　失败，则继续循环尝试
+                   if (!h.compareAndSetWaitStatus(Node.SIGNAL, 0))
+                       continue;            // loop to recheck cases
+                   // 唤醒后继节点
+                   unparkSuccessor(h);
+               }
+               else if (ws == 0 &&
+                        !h.compareAndSetWaitStatus(0, Node.PROPAGATE))
+                   continue;                // loop on failed CAS
+           }
+           // 列表结构没有改变，中断循环
+           if (h == head)                   // loop if head changed
+               break;
+       }
+   }
+   ```
+
+   ![semaphore-release.drawio](assets/semaphore-release.drawio.png)
 
 ### Condition 机制
 
@@ -8275,7 +9268,8 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * 队列不为空条件：消费消息的时候队列里必须有消息才进行消费。
  *
- * 加锁：因为是多线程所以需要防止消息被多个线程同时消费，同时也要防止写消息的时候一个线程存的消息被其他线程覆盖，所以队列操作的时候必须加锁。
+ * 加锁：因为是多线程所以需要防止消息被多个线程同时消费，
+ *      同时也要防止写消息的时候一个线程存的消息被其他线程覆盖，所以队列操作的时候必须加锁。
  */
 public class ConditionProducerConsumerQueue {
 
@@ -8410,231 +9404,6 @@ Producer0 生产 : Product41693
 Producer1 生产 : Product41694
 .... .... ....
 ```
-
-
-
-### BlockingQueue，阻塞队列
-
-Java 中的 BlockingQueue 支持在队列为空时，从中取元素自动阻塞等待直到队列中有元素；在队列为满时，从中放入元素自动阻塞等待直到队列不满。它是并发编程中常用的线程安全数据结构之一，用于在多线程环境下安全地传递数据，非常典型的应用就是 Producer-Consumer 问题。
-
-BlockingQueue 是一个接口，有多种常用实现类：
-
-- ArrayBlockingQueue：基于数组的有界阻塞队列
-- LinkedBlockingQueue：基于链表的无界阻塞队列
-- PriorityBlockingQueue：支持优先级排序的无界阻塞队列
-- DelayQueue：支持延迟获取元素的无界阻塞队列
-- SynchronousQueue：不存储元素的阻塞队列，用于线程间的直接传输。
-
-#### 基本使用
-
-无界阻塞队列没有固定容量限制，适用于生产者速度远大于消费者；有界阻塞队列有容量限制，适用于平衡生产者和消费者，控制资源使用。
-
-BlockingQueue 的主要 API 有：
-
-| 方法签名                                                     | 功能描述                                                     |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
-| `void put(E element) throws InterruptedException`            | 将指定元素放入队列，如果队列已满则阻塞等待直到有空间可用。   |
-| `E take() throws InterruptedException`                       | 从队列中取出并移除一个元素，如果队列为空则阻塞等待直到有元素可取。 |
-| `boolean offer(E element, long timeout, TimeUnit unit) throws InterruptedException` | 将指定元素放入队列，如果队列已满则等待一段时间，超时后返回 `false`。 |
-| `E poll(long timeout, TimeUnit unit) throws InterruptedException` | 从队列中取出并移除一个元素，如果队列为空则等待一段时间，超时后返回 `null`。 |
-| `int size()`                                                 | 返回队列中的元素数量。                                       |
-| `boolean isEmpty()`                                          | 判断队列是否为空。                                           |
-| `boolean offer(E element)`                                   | 将指定元素放入队列，如果队列已满则返回 `false`。             |
-| `E poll()`                                                   | 从队列中取出并移除一个元素，如果队列为空则返回 `null`。      |
-
-为了更好地理解 BlockingQueue 阻塞的特性，我们只有生产者而没有消费者
-
-```java
-package com.congee02.multithread.blockingqueue;
-
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-
-public class ProducerNoConsumerBlockingQueue {
-
-    private static final int BUFFER_SIZE = 3;
-
-    private static final BlockingQueue<String> BUFFER = new ArrayBlockingQueue<>(BUFFER_SIZE);
-
-    private static final String BUFFER_ELEMENT_PREFIX = "buffer-";
-
-    private static final Runnable producerRunnable = () -> {
-        try {
-            for (int i = 0 ; i < 10 ; i ++ ) {
-                String currentProduct = BUFFER_ELEMENT_PREFIX + i;
-                Thread.sleep(1);
-                // 尝试添加产品到缓冲区
-                boolean notFull = BUFFER.offer(currentProduct);
-                // 若失败，则阻塞等待缓冲区不满，然后添加产品。
-                if (! notFull) {
-                    System.out.println("队列已满，阻塞等待队列有空位");
-                    BUFFER.put(currentProduct);
-                }
-                System.out.println("产品 " + currentProduct + " 已经放入缓冲区中");
-            }
-        } catch (InterruptedException e) {
-            System.err.println(e.getMessage());
-        }
-    };
-
-    public static void main(String[] args) {
-        Thread producer
-                = new Thread(producerRunnable, "ProducerNoConsumerBlockingQueue-Producer");
-        producer.start();
-    }
-
-}
-
-```
-
-运行结果：
-
-```java
-产品 buffer-0 已经放入缓冲区中
-产品 buffer-1 已经放入缓冲区中
-产品 buffer-2 已经放入缓冲区中
-队列已满，阻塞等待队列有空位
-
-```
-
-可见，在队列已满时，调用其 put 方法会使其阻塞，这就是 BlockingQueue 提供的阻塞特性。
-
-下面再来看典型的生产者消费者情形。
-
-```java
-package com.congee02.multithread.blockingqueue;
-
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-
-public class ProducerConsumerBlockingQueue {
-
-    // 缓冲区大小
-    private static final int BUFFER_SIZE = 3;
-    // 产品数量
-    private static final int PRODUCT_NUM = 10;
-
-    // 缓冲区
-    private static final BlockingQueue<String> BUFFER = new ArrayBlockingQueue<>(BUFFER_SIZE);
-
-    private static final String BUFFER_PRODUCT_PREFIX = "product-";
-
-    private static final Runnable producerRunnable = () -> {
-        try {
-            for (int i = 0 ; i < PRODUCT_NUM ; i ++ ) {
-                Thread.sleep(1);
-                String currentProduct = BUFFER_PRODUCT_PREFIX + i;
-                // 尝试添加产品到缓冲区
-                boolean notFull = BUFFER.offer(currentProduct);
-                // 若失败，则阻塞等待缓冲区不满，即消费者消费后，然后添加产品。
-                if (! notFull) {
-                    System.out.println("队列已满，阻塞等待队列有空位");
-                    BUFFER.put(currentProduct);
-                }
-                System.out.println("产品 " + currentProduct + " 已经放入缓冲区中");
-            }
-        } catch (InterruptedException e) {
-            System.err.println(e.getMessage());
-        }
-        System.out.println("生产者完成");
-    };
-
-    private static final Runnable consumerRunnable = () -> {
-        try {
-            for (int i = 0 ; i < PRODUCT_NUM ; i ++ ) {
-                Thread.sleep(1);
-                // 尝试取出缓冲区队头的元素
-                String product = BUFFER.poll();
-
-                boolean notEmpty = product != null;
-                // 若失败，则阻塞等待缓冲区为空，等待缓冲区不空，即生产者消费后，然后消费产品
-                if (! notEmpty) {
-                    product = BUFFER.take();
-                    System.out.println("队列已空，阻塞等待队列有产品");
-                }
-                System.out.println("消费者消费 " + product + "; 是否有");
-            }
-        } catch (InterruptedException e) {
-            System.err.println(e.getMessage());
-        }
-        System.out.println("消费者完成");
-    };
-
-    public static void main(String[] args) {
-        Thread producer = new Thread(producerRunnable, "producer");
-        Thread consumer = new Thread(consumerRunnable, "consumer");
-        producer.start();
-        consumer.start();
-    }
-
-}
-
-```
-
-
-
-#### ArrayBlockingQueue 源码分析
-
-参考：https://juejin.cn/post/7235714313720397884
-
-构造器
-
-```java
-public ArrayBlockingQueue(int capacity, boolean fair) {
-    if (capacity <= 0)
-        throw new IllegalArgumentException();
-    this.items = new Object[capacity];
-    lock = new ReentrantLock(fair);
-    notEmpty = lock.newCondition();
-    notFull =  lock.newCondition();
-}
-```
-
-发现其中使用到了公平重入锁和两个 Condition
-
-put 方法
-
-```java
-public void put(E e) throws InterruptedException {
-    Objects.requireNonNull(e);
-    final ReentrantLock lock = this.lock;
-    lock.lockInterruptibly();
-    try {
-        while (count == items.length)
-            notFull.await();
-        enqueue(e);
-    } finally {
-        lock.unlock();
-    }
-}
-```
-
-使用 ReentrantLock 加锁，再尝试往阻塞对类中加入元素，如果当前队列满则调用 notFull.await() 进行等待，然后将当前线程加入到 notFull 的 Condition 等待队列中，等到队列未满被唤醒然后调用 enqueue(e) 添加元素，最后释放锁，下面来看看 enque(E x) 方法
-
-enqueue 方法
-
-```java
-/**
- * Inserts element at current put position, advances, and signals.
- * Call only when holding lock.
- */
-private void enqueue(E e) {
-    // assert lock.isHeldByCurrentThread();
-    // assert lock.getHoldCount() == 1;
-    // assert items[putIndex] == null;
-    final Object[] items = this.items;
-    items[putIndex] = e;
-    if (++putIndex == items.length) putIndex = 0;
-    count++;
-    notEmpty.signal();
-}
-```
-
-添加元素之后调用 notEmpty.signal() 唤醒 notEmpty 队列中队头的消费者。
-
-#### ArrayBlockingQueue 原理图
-
-![d1520c7e5f034236a395461426c1539d~tplv-k3u1fbpfcp-zoom-in-crop-mark 1512 0 0 0](assets/d1520c7e5f034236a395461426c1539dtplv-k3u1fbpfcp-zoom-in-crop-mark 1512 0 0 0.webp)
 
 
 
