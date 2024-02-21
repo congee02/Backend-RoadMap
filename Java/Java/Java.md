@@ -1727,7 +1727,7 @@ BlockingQueue 常用于 Producer-Consumer 模型中
 
 ![8e798a4269f52db29bb044678414cca2](assets/8e798a4269f52db29bb044678414cca2.png)
 
-BlockingQueue 的实现类有：PriorityBlockingQueue，LinkedBlockingQueue，ArrayBlockingQueue，DelayQueue，SynchronousQueueSynchronousQueue。
+BlockingQueue 的实现类有：PriorityBlockingQueue，LinkedBlockingQueue，ArrayBlockingQueue，DelayQueue，SynchronousQueue。
 
 具体实现类的区别在这暂且不表，在多线程部分中详细阐述。
 
